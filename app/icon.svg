@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#1F1812"></rect>
+  <rect x="26" y="26" width="460" height="460" rx="90" fill="none" stroke="#E8A87C" stroke-width="8" opacity="0.55"></rect>
+  <text x="50%" y="52%" text-anchor="middle" dominant-baseline="central" font-family="Georgia, &#39;Times New Roman&#39;, serif" font-size="248" fill="#FAF7F2" letter-spacing="-6">JD</text>
+  <text x="50%" y="80%" text-anchor="middle" dominant-baseline="central" font-family="Georgia, serif" font-size="42" fill="#E8A87C" letter-spacing="14">IMÓVEIS</text>
+</svg>

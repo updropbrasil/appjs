@@ -42,36 +42,38 @@ export default function PortalClient({ imoveis, heroVideo }) {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
       {/* HEADER */}
-      <header style={{ position: 'sticky', top: 0, zIndex: 40, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0', background: 'rgba(31,24,18,.92)', backdropFilter: 'blur(10px)', borderBottom: '1px solid var(--line)' }} className="container">
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 9 }}>
-          <span className="serif" style={{ fontSize: 20, letterSpacing: '.04em', color: 'var(--cream-2)' }}>JASON DIAS</span>
-          <span style={{ fontSize: 10, letterSpacing: '.22em', color: 'var(--taupe)' }}>IMÓVEIS</span>
+      <header style={{ position: 'sticky', top: 0, zIndex: 40, background: 'rgba(31,24,18,.92)', backdropFilter: 'blur(10px)', borderBottom: '1px solid var(--line)' }}>
+        <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 48px' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 9 }}>
+            <span className="serif" style={{ fontSize: 20, letterSpacing: '.04em', color: 'var(--cream-2)' }}>JASON DIAS</span>
+            <span style={{ fontSize: 10, letterSpacing: '.22em', color: 'var(--taupe)' }}>IMÓVEIS</span>
+          </div>
+          <a href={wa} target="_blank" rel="noopener" style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--accent)', color: '#2A2117', padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 700 }}>
+            WhatsApp
+          </a>
         </div>
-        <a href={wa} target="_blank" rel="noopener" style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--accent)', color: '#2A2117', padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 700 }}>
-          WhatsApp
-        </a>
       </header>
 
       {/* HERO */}
-      <section style={{ position: 'relative', height: 520, background: 'linear-gradient(200deg,#4A3B2A,#2A2117 60%,#1F1812)', overflow: 'hidden' }}>
+      <section style={{ position: 'relative', minHeight: 'min(80vh, 640px)', background: 'linear-gradient(200deg,#4A3B2A,#2A2117 60%,#1F1812)', overflow: 'hidden', display: 'flex' }}>
         {heroYt && !heroPlaying && (
           <iframe src={ytEmbed(heroYt, { controls: 0 })} referrerPolicy="strict-origin-when-cross-origin"
-            style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', minWidth: '100%', minHeight: '100%', aspectRatio: '16/9', border: 0, pointerEvents: 'none', opacity: .55 }} title="Vídeo em destaque" />
+            style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: '100vw', height: '56.25vw', minHeight: '100%', minWidth: '177.78vh', border: 0, pointerEvents: 'none', opacity: .55 }} title="Vídeo em destaque" />
         )}
         {heroYt && heroPlaying && (
           <iframe src={ytEmbed(heroYt, { mute: 0, controls: 1, loop: 0 })} referrerPolicy="strict-origin-when-cross-origin"
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }} allow="autoplay; encrypted-media" allowFullScreen title="Tour em destaque" />
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0, zIndex: 3 }} allow="autoplay; encrypted-media" allowFullScreen title="Tour em destaque" />
         )}
         {!heroPlaying && (
-          <div className="container" style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', paddingBottom: 56, background: 'linear-gradient(to top,#1F1812 4%,transparent 55%)' }}>
-            <div style={{ maxWidth: 620 }}>
+          <div className="container" style={{ position: 'relative', zIndex: 2, alignSelf: 'flex-end', width: '100%', padding: '0 48px 56px', background: 'linear-gradient(to top,#1F1812 2%,transparent 60%)' }}>
+            <div style={{ maxWidth: 620, paddingTop: 120 }}>
               <div style={{ display: 'inline-flex', gap: 8, fontSize: 10.5, letterSpacing: '.2em', color: 'var(--accent)', border: '1px solid rgba(232,168,124,.4)', padding: '6px 12px', borderRadius: 999, marginBottom: 18 }}>JOÃO PESSOA · PB</div>
-              <h1 style={{ fontSize: 46, lineHeight: 1.14, color: 'var(--cream-2)', margin: 0 }}>Morar bem em João Pessoa começa com um bom tour</h1>
+              <h1 style={{ fontSize: 'clamp(30px, 4vw, 48px)', lineHeight: 1.14, color: 'var(--cream-2)', margin: 0 }}>Morar bem em João Pessoa começa com um bom tour</h1>
               <p style={{ fontSize: 16, color: 'var(--sand)', marginTop: 14, maxWidth: 460, lineHeight: 1.55 }}>Todos os nossos imóveis têm tour guiado em vídeo. Conheça por dentro antes de agendar a visita.</p>
               <div style={{ display: 'flex', gap: 10, marginTop: 24, flexWrap: 'wrap', alignItems: 'center' }}>
                 <button onClick={() => setFilter('aluguel')} style={{ background: 'var(--accent)', color: '#2A2117', padding: '13px 24px', borderRadius: 8, fontSize: 14, fontWeight: 700, border: 0 }}>Ver imóveis para alugar</button>
                 <button onClick={() => setFilter('venda')} style={{ border: '1px solid rgba(243,237,227,.35)', background: 'transparent', color: 'var(--cream)', padding: '13px 24px', borderRadius: 8, fontSize: 14, fontWeight: 600 }}>À venda</button>
-                {heroYt && <button onClick={() => setHeroPlaying(true)} style={{ background: 'transparent', border: 0, color: 'var(--sand)', fontSize: 13 }}>▶ Assistir com som</button>}
+                {heroYt && <button onClick={() => setHeroPlaying(true)} style={{ background: 'transparent', border: 0, color: 'var(--sand)', fontSize: 13, cursor: 'pointer' }}>▶ Assistir com som</button>}
               </div>
             </div>
           </div>

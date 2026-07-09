@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '../../lib/supabase-browser';
 import { formatPreco, ytId, ytThumb } from '../../lib/format';
 
-export default function GestaoClient({ initialImoveis, initialParceiros }) {
+export default function GestaoClient({ initialImoveis, initialParceiros, initialHero }) {
   const router = useRouter();
   const supabase = createClient();
   const [imoveis, setImoveis] = useState(initialImoveis);
@@ -15,8 +15,8 @@ export default function GestaoClient({ initialImoveis, initialParceiros }) {
   const [confirm, setConfirm] = useState(null);
   const [showParceiros, setShowParceiros] = useState(false);
   const [pNome, setPNome] = useState(''); const [pPct, setPPct] = useState('');
-  const [hero, setHero] = useState('');
-  const [heroSalvo, setHeroSalvo] = useState(false);
+  const [hero, setHero] = useState(initialHero || '');
+  const [heroSalvo, setHeroSalvo] = useState(true);
 
   async function togglePausa(im) {
     const novo = im.status === 'ativo' ? 'pausado' : 'ativo';
@@ -40,11 +40,8 @@ export default function GestaoClient({ initialImoveis, initialParceiros }) {
     setParceiros(l => l.filter(p => p.id !== id));
   }
   async function salvarHero() {
-    // marca o imóvel com este vídeo como destaque (fonte do hero)
-    const vid = ytId(hero);
-    if (!vid) return;
-    await supabase.from('imoveis').update({ destaque: false }).eq('destaque', true);
-    await supabase.from('imoveis').update({ destaque: true }).eq('video_id', vid);
+    // grava o vídeo da home na tabela site_config (independe dos imóveis)
+    await supabase.from('site_config').upsert({ key: 'hero_video', value: hero.trim() });
     setHeroSalvo(true);
   }
   async function sair() {

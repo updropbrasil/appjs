@@ -195,6 +195,27 @@ create policy "fotos_delete" on storage.objects
   for delete using (bucket_id in ('imoveis-fotos','imoveis-videos') and auth.role() = 'authenticated');
 
 -- =====================================================================
+-- CONFIG DO SITE (chave/valor) — ex.: vídeo em destaque da home
+-- =====================================================================
+create table if not exists site_config (
+  key   text primary key,
+  value text
+);
+alter table site_config enable row level security;
+
+drop policy if exists "config_public_read" on site_config;
+create policy "config_public_read" on site_config
+  for select using (true);
+
+drop policy if exists "config_admin_write" on site_config;
+create policy "config_admin_write" on site_config
+  for all using (auth.role() = 'authenticated')
+  with check (auth.role() = 'authenticated');
+
+insert into site_config (key, value) values ('hero_video', '')
+on conflict (key) do nothing;
+
+-- =====================================================================
 -- DADOS DE EXEMPLO (opcional — apague depois de testar)
 -- =====================================================================
 insert into imoveis (titulo, slug, finalidade, categoria, mobilia, bairro, referencia,

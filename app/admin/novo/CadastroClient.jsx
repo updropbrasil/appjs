@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '../../../lib/supabase-browser';
 import { ytId, ytThumb, parsePreco, formatPreco, slugify, tituloSeo, MOBILIA_LABELS } from '../../../lib/format';
@@ -17,6 +17,7 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
   const [step, setStep] = useState(0);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
+  const [wide, setWide] = useState(false);
   const [novasFotos, setNovasFotos] = useState([]); // {file, preview}
   const [form, setForm] = useState(() => imovel ? {
     finalidade: imovel.finalidade, categoria: imovel.categoria, titulo: imovel.titulo,
@@ -33,6 +34,12 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
   });
 
   const set = (patch) => setForm(f => ({ ...f, ...patch }));
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1000px)');
+    const on = () => setWide(mq.matches);
+    on(); mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
   const isAluguel = form.finalidade === 'aluguel';
   const seoTitle = tituloSeo({ categoria: form.categoria, quartos: form.quartos, suites: form.suites, mobilia: form.mobilia, finalidade: form.finalidade, bairro: form.bairro });
   const vid = ytId(form.video);
@@ -96,7 +103,7 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-3)', display: 'flex', justifyContent: 'center' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-3)', display: 'flex', justifyContent: 'center', gap: 40, padding: wide ? '0 24px' : 0 }}>
       <div style={{ width: '100%', maxWidth: 480, minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
         <header style={{ position: 'sticky', top: 0, zIndex: 20, background: 'rgba(31,24,18,.95)', backdropFilter: 'blur(8px)', padding: '16px 20px 12px', borderBottom: '1px solid var(--line)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
@@ -133,14 +140,6 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
           {step === 1 && (
             <>
               <h2 style={h2}>Onde fica?</h2>
-              <Field label="Título do anúncio">
-                <input value={form.titulo} onChange={e => set({ titulo: e.target.value })} placeholder="Ex.: Apartamento vista-mar" style={inp} />
-                <div style={{ background: 'rgba(232,168,124,.07)', border: '1px solid rgba(232,168,124,.25)', borderRadius: 12, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}>
-                  <div style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '.1em', color: 'var(--accent)' }}>🔎 TÍTULO OTIMIZADO PARA O GOOGLE</div>
-                  <div style={{ fontSize: 14, color: 'var(--cream)', lineHeight: 1.45 }}>{seoTitle}</div>
-                  <button onClick={() => set({ titulo: seoTitle })} style={{ alignSelf: 'flex-start', background: 'var(--accent)', color: '#2A2117', padding: '9px 16px', borderRadius: 8, fontSize: 12.5, fontWeight: 700, border: 0 }}>Usar este título</button>
-                </div>
-              </Field>
               <Field label="Bairro">
                 <Chips opts={BAIRROS.map(b => [b, b])} value={form.bairro} onPick={b => set({ bairro: b })} />
               </Field>
@@ -234,7 +233,17 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
 
           {step === 5 && (
             <>
-              <h2 style={h2}>Revise o anúncio</h2>
+              <h2 style={h2}>Título e revisão</h2>
+              <Field label="Título do anúncio">
+                <div style={{ background: 'rgba(232,168,124,.07)', border: '1px solid rgba(232,168,124,.25)', borderRadius: 12, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '.1em', color: 'var(--accent)' }}>🔎 SUGESTÃO OTIMIZADA PARA O GOOGLE</div>
+                  <div style={{ fontSize: 14, color: 'var(--cream)', lineHeight: 1.45 }}>{seoTitle}</div>
+                  <button onClick={() => set({ titulo: seoTitle })} style={{ alignSelf: 'flex-start', background: 'var(--accent)', color: '#2A2117', padding: '9px 16px', borderRadius: 8, fontSize: 12.5, fontWeight: 700, border: 0 }}>Usar esta sugestão</button>
+                </div>
+                <input value={form.titulo} onChange={e => set({ titulo: e.target.value })} placeholder="Ou escreva o seu…" style={inp} />
+                <Hint>A sugestão é montada a partir das infos que você preencheu. Pode usá-la ou ajustar.</Hint>
+              </Field>
+              <div style={{ fontSize: 13, color: 'var(--taupe)' }}>É assim que o anúncio aparece no site:</div>
               <div style={{ background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 14, overflow: 'hidden' }}>
                 <div style={{ aspectRatio: '16/10', background: vid ? `url("${ytThumb(vid)}") center/cover` : (novasFotos[0] ? `url("${novasFotos[0].preview}") center/cover` : '#463928'), position: 'relative' }}>
                   <span style={{ position: 'absolute', top: 12, left: 12, background: 'rgba(31,24,18,.85)', color: isAluguel ? 'var(--accent)' : 'var(--green)', fontSize: 10.5, fontWeight: 700, letterSpacing: '.14em', padding: '5px 10px', borderRadius: 6 }}>{isAluguel ? 'ALUGUEL' : 'VENDA'}</span>
@@ -270,6 +279,26 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
           </div>
         )}
       </div>
+
+      {wide && step < 6 && (
+        <div style={{ width: 320, flex: 'none', position: 'sticky', top: 0, alignSelf: 'flex-start', padding: '32px 0', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ fontSize: 11, letterSpacing: '.18em', color: 'var(--taupe)', fontWeight: 700 }}>PRÉVIA NO SITE</div>
+          <div style={{ background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 14, overflow: 'hidden' }}>
+            <div style={{ position: 'relative', aspectRatio: '9/16', background: vid ? `url("${ytThumb(vid)}") center/cover` : (novasFotos[0] ? `url("${novasFotos[0].preview}") center/cover` : '#463928') }}>
+              <span style={{ position: 'absolute', top: 12, left: 12, background: 'rgba(31,24,18,.85)', color: isAluguel ? 'var(--accent)' : 'var(--green)', fontSize: 10.5, fontWeight: 700, letterSpacing: '.14em', padding: '5px 10px', borderRadius: 6 }}>{isAluguel ? 'ALUGUEL' : 'VENDA'}</span>
+              {vid && <span style={{ position: 'absolute', bottom: 12, left: 12, width: 30, height: 30, borderRadius: 999, background: 'rgba(243,237,227,.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2A2117', fontSize: 12 }}>▶</span>}
+            </div>
+            <div style={{ padding: '14px 16px 16px' }}>
+              <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--cream-2)' }}>{form.preco ? formatPreco(parsePreco(form.preco)) : 'R$ —'}<span style={{ fontSize: 12, color: 'var(--taupe)' }}>{isAluguel ? '/mês' : ''}</span></div>
+              <div style={{ fontSize: 12.5, color: 'var(--sand)', margin: '4px 0 9px' }}>{form.titulo || seoTitle} · {form.bairro || 'João Pessoa'}</div>
+              <div style={{ display: 'flex', gap: '8px 11px', fontSize: 11, color: 'var(--muted)', flexWrap: 'wrap' }}>
+                <span>{form.quartos} quartos</span><span>{form.banheiros} banh.</span><span>{form.vagas} vagas</span><span>{form.area || '—'} m²</span><span>{MOBILIA_LABELS[form.mobilia]}</span>
+              </div>
+            </div>
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>Atualiza em tempo real conforme você preenche.</div>
+        </div>
+      )}
     </div>
   );
 }

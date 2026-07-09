@@ -59,6 +59,7 @@ create table if not exists imoveis (
   banheiros     int  default 0,
   vagas         int  default 0,
   area_m2       numeric(8,2),
+  andar         text,                           -- andar do apartamento (ex.: "5º", "Térreo")
 
   -- valores (em centavos p/ evitar erro de float)
   preco_cents         bigint not null default 0,

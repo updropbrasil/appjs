@@ -15,7 +15,7 @@ export default function DetailClient({ im, precoFmt }) {
 
   const feats = [
     ['Quartos', im.quartos], ['Banheiros', im.banheiros], ['Vagas', im.vagas],
-    ['Área', im.area_m2 ? `${im.area_m2} m²` : null], ['Tipo', im.categoria], ['Mobília', MOBILIA_LABELS[im.mobilia]]
+    ['Área', im.area_m2 ? `${im.area_m2} m²` : null], ['Andar', im.andar], ['Tipo', im.categoria], ['Mobília', MOBILIA_LABELS[im.mobilia]]
   ].filter(([, v]) => v);
 
   return (

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '../../lib/supabase-browser';
 import { formatPreco, ytId, ytThumb } from '../../lib/format';
 
-export default function GestaoClient({ initialImoveis, initialParceiros, initialHero }) {
+export default function GestaoClient({ initialImoveis, initialParceiros, initialHero, initialHeroFile }) {
   const router = useRouter();
   const supabase = createClient();
   const [imoveis, setImoveis] = useState(initialImoveis);
@@ -17,6 +17,30 @@ export default function GestaoClient({ initialImoveis, initialParceiros, initial
   const [pNome, setPNome] = useState(''); const [pPct, setPPct] = useState('');
   const [hero, setHero] = useState(initialHero || '');
   const [heroSalvo, setHeroSalvo] = useState(true);
+  const [heroFileUrl, setHeroFileUrl] = useState(initialHeroFile || '');
+  const [heroUploading, setHeroUploading] = useState(false);
+
+  async function subirHeroFile(e) {
+    const f = (e.target.files || [])[0];
+    e.target.value = '';
+    if (!f) return;
+    setHeroUploading(true);
+    const ext = (f.name.split('.').pop() || 'mp4');
+    const path = `hero/home-${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from('imoveis-videos').upload(path, f, { upsert: true, contentType: f.type });
+    if (!error) {
+      const { data: pub } = supabase.storage.from('imoveis-videos').getPublicUrl(path);
+      await supabase.from('site_config').upsert({ key: 'hero_video_file', value: pub.publicUrl });
+      setHeroFileUrl(pub.publicUrl);
+    } else {
+      alert('Não consegui subir o vídeo. Verifique se o bucket "imoveis-videos" existe (rode o SQL 03).');
+    }
+    setHeroUploading(false);
+  }
+  async function removerHeroFile() {
+    await supabase.from('site_config').upsert({ key: 'hero_video_file', value: '' });
+    setHeroFileUrl('');
+  }
 
   async function togglePausa(im) {
     const novo = im.status === 'ativo' ? 'pausado' : 'ativo';
@@ -77,13 +101,34 @@ export default function GestaoClient({ initialImoveis, initialParceiros, initial
 
         <div style={{ padding: '18px 20px 40px', display: 'flex', flexDirection: 'column', gap: 14 }}>
           {/* VÍDEO DA HOME */}
-          <div style={{ background: 'var(--bg-2)', border: '1px solid rgba(232,168,124,.25)', borderRadius: 14, padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ background: 'var(--bg-2)', border: '1px solid rgba(232,168,124,.25)', borderRadius: 14, padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
             <strong style={{ fontSize: 14, color: 'var(--cream-2)' }}>▶ Vídeo em destaque da home</strong>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <input value={hero} onChange={e => { setHero(e.target.value); setHeroSalvo(false); }} placeholder="Cole o link do YouTube ou Shorts do imóvel em destaque…" style={{ flex: 1, minWidth: 200, background: 'var(--bg)', border: '1px solid rgba(243,237,227,.15)', borderRadius: 10, padding: '13px 15px', fontSize: 15, color: 'var(--cream)' }} />
-              <button onClick={salvarHero} style={{ padding: '13px 20px', borderRadius: 10, background: 'var(--accent)', color: '#2A2117', fontSize: 13.5, fontWeight: 700, border: 0 }}>{heroSalvo ? 'Salvo ✓' : 'Salvar'}</button>
+
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--taupe)', marginBottom: 6 }}>OPÇÃO 1 — Link do YouTube</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <input value={hero} onChange={e => { setHero(e.target.value); setHeroSalvo(false); }} placeholder="Cole o link do YouTube ou Shorts…" style={{ flex: 1, minWidth: 200, background: 'var(--bg)', border: '1px solid rgba(243,237,227,.15)', borderRadius: 10, padding: '13px 15px', fontSize: 15, color: 'var(--cream)' }} />
+                <button onClick={salvarHero} style={{ padding: '13px 20px', borderRadius: 10, background: 'var(--accent)', color: '#2A2117', fontSize: 13.5, fontWeight: 700, border: 0 }}>{heroSalvo ? 'Salvo ✓' : 'Salvar'}</button>
+              </div>
+              <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>Roda automático no computador. No celular, o cliente toca pra assistir.</span>
             </div>
-            <span style={{ fontSize: 12, color: 'var(--muted)' }}>O imóvel com este vídeo vira o destaque que aparece rodando no topo do site.</span>
+
+            <div style={{ borderTop: '1px solid var(--line)', paddingTop: 12 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--taupe)', marginBottom: 6 }}>OPÇÃO 2 — Subir vídeo do celular <span style={{ color: 'var(--accent)' }}>(roda automático até no celular)</span></div>
+              {heroFileUrl ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <video src={heroFileUrl} muted playsInline style={{ width: 90, aspectRatio: '16/9', objectFit: 'cover', borderRadius: 8, background: '#000' }} />
+                  <span style={{ fontSize: 13, color: 'var(--green)' }}>✓ Vídeo no ar</span>
+                  <button onClick={removerHeroFile} style={{ background: 'transparent', border: '1px solid rgba(200,90,70,.35)', color: '#c88a7a', borderRadius: 8, padding: '8px 12px', fontSize: 12.5 }}>Remover</button>
+                </div>
+              ) : (
+                <label style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 8, padding: '11px 16px', borderRadius: 10, border: '1px dashed rgba(232,168,124,.5)', color: 'var(--accent)', fontSize: 13, fontWeight: 700, cursor: 'pointer', background: 'rgba(232,168,124,.05)' }}>
+                  <input type="file" accept="video/*" onChange={subirHeroFile} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} />
+                  {heroUploading ? 'Enviando…' : '↑ Subir vídeo da home'}
+                </label>
+              )}
+              <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 6 }}>Recomendado pra celular. Use um clipe curto e leve (até ~20 s).</div>
+            </div>
           </div>
 
           {showParceiros && (
@@ -120,9 +165,16 @@ export default function GestaoClient({ initialImoveis, initialParceiros, initial
           {lista.map(im => {
             const vid = ytId(im.youtube_url);
             const pausado = im.status === 'pausado';
+            const thumb = im.capa_url || (vid ? ytThumb(vid) : '');
             return (
               <div key={im.id} style={{ display: 'flex', gap: 14, background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 14, padding: 12, opacity: pausado ? 0.55 : 1 }}>
-                <div style={{ width: 74, flex: 'none', aspectRatio: '9/14', borderRadius: 10, background: (im.capa_url || vid) ? `url("${im.capa_url || ytThumb(vid)}") center/cover` : 'linear-gradient(150deg,#6B5A44,#463928)' }} />
+                {thumb ? (
+                  <div style={{ width: 74, flex: 'none', aspectRatio: '9/14', borderRadius: 10, background: `url("${thumb}") center/cover` }} />
+                ) : im.video_file_url ? (
+                  <video src={im.video_file_url} muted playsInline preload="metadata" style={{ width: 74, flex: 'none', aspectRatio: '9/14', borderRadius: 10, objectFit: 'cover', background: '#000' }} />
+                ) : (
+                  <div style={{ width: 74, flex: 'none', aspectRatio: '9/14', borderRadius: 10, background: 'linear-gradient(150deg,#6B5A44,#463928)' }} />
+                )}
                 <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 8, padding: '2px 0' }}>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>

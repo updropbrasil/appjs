@@ -20,22 +20,36 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
   const [wide, setWide] = useState(false);
   const [novasFotos, setNovasFotos] = useState([]); // {file, preview}
   const [videoArquivo, setVideoArquivo] = useState(null); // {file, preview}
+  const [dragIdx, setDragIdx] = useState(null);
   function onPickVideo(e) {
     const f = (e.target.files || [])[0];
     if (f) setVideoArquivo({ file: f, preview: URL.createObjectURL(f) });
     e.target.value = '';
   }
+  function moveFoto(from, to) {
+    if (from == null || to == null || from === to || to < 0 || to >= novasFotos.length) return;
+    setNovasFotos(list => {
+      const arr = [...list];
+      const [it] = arr.splice(from, 1);
+      arr.splice(to, 0, it);
+      return arr;
+    });
+    setDragIdx(null);
+  }
+  function removeFoto(i) {
+    setNovasFotos(list => list.filter((_, j) => j !== i));
+  }
   const [form, setForm] = useState(() => imovel ? {
     finalidade: imovel.finalidade, categoria: imovel.categoria, titulo: imovel.titulo,
     bairro: imovel.bairro, endereco: imovel.endereco || '', referencia: imovel.referencia || '',
     mobilia: imovel.mobilia, quartos: imovel.quartos || 0, suites: imovel.suites || 0,
-    banheiros: imovel.banheiros || 0, vagas: imovel.vagas || 0, area: imovel.area_m2 || '',
+    banheiros: imovel.banheiros || 0, vagas: imovel.vagas || 0, area: imovel.area_m2 || '', andar: imovel.andar || '',
     preco: imovel.preco_cents ? String(imovel.preco_cents / 100) : '', condominio: '', iptu: '',
     video: imovel.youtube_url || '', videoMode: 'link', descricao: imovel.descricao || '',
     parceiro_id: imovel.parceiro_id || '', parceiro_pct: imovel.parceiro_pct || ''
   } : {
     finalidade: 'aluguel', categoria: 'Apartamento', titulo: '', bairro: '', endereco: '', referencia: '',
-    mobilia: 'sem', quartos: 3, suites: 1, banheiros: 2, vagas: 2, area: '', preco: '', condominio: '', iptu: '',
+    mobilia: 'sem', quartos: 3, suites: 1, banheiros: 2, vagas: 2, area: '', andar: '', preco: '', condominio: '', iptu: '',
     video: '', videoMode: 'link', descricao: '', parceiro_id: '', parceiro_pct: ''
   });
 
@@ -56,6 +70,27 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
     e.target.value = '';
   }
 
+  // reduz a foto (mantém boa qualidade) antes de subir — carrega muito mais rápido
+  function compressImage(file, maxDim = 1920, quality = 0.85) {
+    return new Promise((resolve) => {
+      if (!file.type || !file.type.startsWith('image/')) return resolve(file);
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        const m = Math.max(width, height);
+        if (m > maxDim) { const s = maxDim / m; width = Math.round(width * s); height = Math.round(height * s); }
+        const c = document.createElement('canvas');
+        c.width = width; c.height = height;
+        c.getContext('2d').drawImage(img, 0, 0, width, height);
+        URL.revokeObjectURL(url);
+        c.toBlob(b => resolve(b || file), 'image/jpeg', quality);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+      img.src = url;
+    });
+  }
+
   async function publicar() {
     setSalvando(true); setErro('');
     try {
@@ -65,10 +100,11 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
         finalidade: form.finalidade, categoria: form.categoria, mobilia: form.mobilia,
         bairro: form.bairro || 'João Pessoa', endereco: form.endereco, referencia: form.referencia,
         quartos: Number(form.quartos), suites: Number(form.suites), banheiros: Number(form.banheiros),
-        vagas: Number(form.vagas), area_m2: form.area ? Number(String(form.area).replace(/\D/g, '')) : null,
+        vagas: Number(form.vagas), area_m2: form.area ? Number(String(form.area).replace(/\D/g, '')) : null, andar: form.andar || null,
         preco_cents: parsePreco(form.preco), condominio_cents: parsePreco(form.condominio), iptu_cents: parsePreco(form.iptu),
         youtube_url: (form.videoMode !== 'arquivo' && form.video) ? form.video : null,
         video_id: (form.videoMode !== 'arquivo' && vid) ? vid : null,
+        capa_url: (form.videoMode !== 'arquivo' && vid) ? `https://i.ytimg.com/vi/${vid}/maxresdefault.jpg` : (imovel?.capa_url || null),
         descricao: form.descricao || null,
         parceiro_id: form.parceiro_id || null, parceiro_pct: form.parceiro_id ? (Number(form.parceiro_pct) || null) : null,
         status: 'ativo'
@@ -94,15 +130,20 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
         }
       }
 
-      // upload das novas fotos para o bucket 'imoveis-fotos'
+      // upload das novas fotos para o bucket 'imoveis-fotos' (comprimidas)
+      let primeiraFotoUrl = null;
       for (let i = 0; i < novasFotos.length; i++) {
-        const { file } = novasFotos[i];
-        const ext = file.name.split('.').pop();
-        const path = `${imovelId}/${Date.now()}-${i}.${ext}`;
-        const { error: upErr } = await supabase.storage.from('imoveis-fotos').upload(path, file, { upsert: true });
+        const blob = await compressImage(novasFotos[i].file);
+        const path = `${imovelId}/${Date.now()}-${i}.jpg`;
+        const { error: upErr } = await supabase.storage.from('imoveis-fotos').upload(path, blob, { upsert: true, contentType: 'image/jpeg', cacheControl: '31536000' });
         if (upErr) continue;
         const { data: pub } = supabase.storage.from('imoveis-fotos').getPublicUrl(path);
+        if (!primeiraFotoUrl) primeiraFotoUrl = pub.publicUrl;
         await supabase.from('imovel_fotos').insert({ imovel_id: imovelId, path, url: pub.publicUrl, ordem: i });
+      }
+      // se não é YouTube e ainda não tem capa, usa a 1ª foto como capa/poster
+      if (form.videoMode === 'arquivo' && primeiraFotoUrl) {
+        await supabase.from('imoveis').update({ capa_url: primeiraFotoUrl }).eq('id', imovelId);
       }
 
       setStep(6);
@@ -197,6 +238,16 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
               <Field label="Área (m²)">
                 <input value={form.area} onChange={e => set({ area: e.target.value })} placeholder="Ex.: 148" inputMode="numeric" style={inp} />
               </Field>
+              {form.categoria !== 'Casa' && (
+                <Field label="Andar">
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {['Térreo', '1º', '2º', '3º', '4º+', 'Cobertura'].map(a => (
+                      <button key={a} onClick={() => set({ andar: a })} style={{ padding: '10px 16px', borderRadius: 999, fontSize: 14, fontWeight: form.andar === a ? 700 : 400, border: `1px solid ${form.andar === a ? 'var(--accent)' : 'rgba(243,237,227,.2)'}`, background: form.andar === a ? 'rgba(232,168,124,.12)' : 'transparent', color: form.andar === a ? 'var(--accent)' : 'var(--sand)' }}>{a}</button>
+                    ))}
+                  </div>
+                  <input value={form.andar} onChange={e => set({ andar: e.target.value })} placeholder="Ou escreva… ex.: 12º andar" style={inp} />
+                </Field>
+              )}
             </>
           )}
 
@@ -268,13 +319,27 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
               <Field label={`Fotos (${fotosIniciais.length + novasFotos.length})`}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
                   {fotosIniciais.map(f => <div key={f.id} style={{ aspectRatio: 1, borderRadius: 12, background: `url("${f.url}") center/cover` }} />)}
-                  {novasFotos.map((f, i) => <div key={i} style={{ aspectRatio: 1, borderRadius: 12, background: `url("${f.preview}") center/cover` }} />)}
+                  {novasFotos.map((f, i) => (
+                    <div key={i}
+                      draggable
+                      onDragStart={() => setDragIdx(i)}
+                      onDragOver={e => e.preventDefault()}
+                      onDrop={() => moveFoto(dragIdx, i)}
+                      style={{ position: 'relative', aspectRatio: 1, borderRadius: 12, background: `url("${f.preview}") center/cover`, cursor: 'grab', outline: dragIdx === i ? '2px solid var(--accent)' : 'none' }}>
+                      <span style={{ position: 'absolute', top: 5, left: 5, background: 'rgba(31,24,18,.8)', color: 'var(--cream)', fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 5 }}>{i === 0 ? 'CAPA' : i + 1}</span>
+                      <div style={{ position: 'absolute', bottom: 5, left: 5, right: 5, display: 'flex', justifyContent: 'space-between' }}>
+                        <button onClick={() => moveFoto(i, i - 1)} disabled={i === 0} style={fotoNav(i === 0)}>‹</button>
+                        <button onClick={() => removeFoto(i)} style={{ ...fotoNav(false), color: '#e8a79a' }}>×</button>
+                        <button onClick={() => moveFoto(i, i + 1)} disabled={i === novasFotos.length - 1} style={fotoNav(i === novasFotos.length - 1)}>›</button>
+                      </div>
+                    </div>
+                  ))}
                   <label style={{ position: 'relative', aspectRatio: 1, borderRadius: 12, border: '2px dashed rgba(243,237,227,.25)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, color: 'var(--taupe)', cursor: 'pointer' }}>
                     <input type="file" accept="image/*" multiple onChange={addFotos} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} />
                     <span style={{ fontSize: 24 }}>+</span><span style={{ fontSize: 11.5 }}>Adicionar</span>
                   </label>
                 </div>
-                <Hint>Direto da galeria do celular. Enviadas para o Storage ao publicar.</Hint>
+                <Hint>Arraste para reordenar (ou use ‹ ›). A 1ª foto é a capa.</Hint>
               </Field>
               <Field label="Descrição (opcional)">
                 <textarea value={form.descricao} onChange={e => set({ descricao: e.target.value })} rows={4} placeholder="Detalhes do imóvel…" style={{ ...inp, resize: 'vertical' }} />
@@ -361,6 +426,7 @@ const dinField = { flex: 1, minWidth: 0, background: 'transparent', border: 0, p
 const h2 = { fontSize: 24, color: 'var(--cream-2)', margin: 0 };
 const bigOpt = (sel) => ({ padding: '22px 16px', borderRadius: 14, border: `2px solid ${sel ? 'var(--accent)' : 'rgba(243,237,227,.15)'}`, background: sel ? 'rgba(232,168,124,.1)' : 'var(--bg-2)', textAlign: 'center', cursor: 'pointer' });
 const counterBtn = (filled) => ({ width: 44, height: 44, borderRadius: 999, border: filled ? 0 : '1px solid rgba(243,237,227,.2)', background: filled ? 'var(--accent)' : 'transparent', color: filled ? '#2A2117' : 'var(--sand)', fontSize: 20 });
+const fotoNav = (disabled) => ({ width: 26, height: 26, borderRadius: 7, border: 0, background: 'rgba(31,24,18,.8)', color: 'var(--cream)', fontSize: 15, lineHeight: 1, opacity: disabled ? 0.3 : 1, cursor: disabled ? 'default' : 'pointer' });
 
 function Label({ children }) { return <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--sand)', marginTop: 6 }}>{children}</div>; }
 function Hint({ children }) { return <span style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>{children}</span>; }

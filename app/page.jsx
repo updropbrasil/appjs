@@ -17,14 +17,15 @@ async function getImoveis() {
 
 async function getHero() {
   const supabase = createClient();
-  // 1) vídeo definido no admin (tabela site_config)
   const { data: cfg } = await supabase
     .from('site_config')
-    .select('value')
-    .eq('key', 'hero_video')
-    .maybeSingle();
-  if (cfg?.value) return cfg.value;
-  // 2) fallback: vídeo do imóvel em destaque, ou o mais recente que tenha vídeo
+    .select('key, value')
+    .in('key', ['hero_video', 'hero_video_file']);
+  const map = {};
+  (cfg || []).forEach(r => { map[r.key] = r.value; });
+  const heroVideoFile = map.hero_video_file || '';
+  if (map.hero_video) return { heroVideo: map.hero_video, heroVideoFile };
+  // fallback: vídeo do imóvel em destaque, ou o mais recente que tenha vídeo
   const { data } = await supabase
     .from('imoveis')
     .select('youtube_url, destaque, created_at')
@@ -34,10 +35,10 @@ async function getHero() {
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
-  return data?.youtube_url || '';
+  return { heroVideo: data?.youtube_url || '', heroVideoFile };
 }
 
 export default async function HomePage() {
-  const [imoveis, heroVideo] = await Promise.all([getImoveis(), getHero()]);
-  return <PortalClient imoveis={imoveis} heroVideo={heroVideo} />;
+  const [imoveis, hero] = await Promise.all([getImoveis(), getHero()]);
+  return <PortalClient imoveis={imoveis} heroVideo={hero.heroVideo} heroVideoFile={hero.heroVideoFile} />;
 }

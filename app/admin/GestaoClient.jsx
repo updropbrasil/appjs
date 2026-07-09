@@ -3,6 +3,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '../../lib/supabase-browser';
+import { uploadToR2 } from '../../lib/r2-upload';
 import { formatPreco, ytId, ytThumb } from '../../lib/format';
 
 export default function GestaoClient({ initialImoveis, initialParceiros, initialHero, initialHeroFile }) {
@@ -19,27 +20,40 @@ export default function GestaoClient({ initialImoveis, initialParceiros, initial
   const [heroSalvo, setHeroSalvo] = useState(true);
   const [heroFileUrl, setHeroFileUrl] = useState(initialHeroFile || '');
   const [heroUploading, setHeroUploading] = useState(false);
+  const [heroUrlInput, setHeroUrlInput] = useState('');
 
   async function subirHeroFile(e) {
     const f = (e.target.files || [])[0];
     e.target.value = '';
     if (!f) return;
     setHeroUploading(true);
-    const ext = (f.name.split('.').pop() || 'mp4');
-    const path = `hero/home-${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from('imoveis-videos').upload(path, f, { upsert: true, contentType: f.type });
-    if (!error) {
-      const { data: pub } = supabase.storage.from('imoveis-videos').getPublicUrl(path);
-      await supabase.from('site_config').upsert({ key: 'hero_video_file', value: pub.publicUrl });
-      setHeroFileUrl(pub.publicUrl);
+    let url = null;
+    // tenta R2 (sem limite); senão Supabase (≤50 MB)
+    try { url = await uploadToR2(f); } catch (err) { url = null; }
+    if (!url) {
+      const ext = (f.name.split('.').pop() || 'mp4');
+      const path = `hero/home-${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from('imoveis-videos').upload(path, f, { upsert: true, contentType: f.type });
+      if (!error) { const { data: pub } = supabase.storage.from('imoveis-videos').getPublicUrl(path); url = pub.publicUrl; }
+    }
+    if (url) {
+      await supabase.from('site_config').upsert({ key: 'hero_video_file', value: url });
+      setHeroFileUrl(url);
     } else {
-      alert('Não consegui subir o vídeo. Verifique se o bucket "imoveis-videos" existe (rode o SQL 03).');
+      alert('Não consegui subir o vídeo. Se for maior que 50 MB, configure o Cloudflare R2 (veja GUIA-VIDEO-R2.md).');
     }
     setHeroUploading(false);
   }
   async function removerHeroFile() {
     await supabase.from('site_config').upsert({ key: 'hero_video_file', value: '' });
     setHeroFileUrl('');
+  }
+  async function salvarHeroUrl() {
+    const url = (heroUrlInput || '').trim();
+    if (!url) return;
+    await supabase.from('site_config').upsert({ key: 'hero_video_file', value: url });
+    setHeroFileUrl(url);
+    setHeroUrlInput('');
   }
 
   async function togglePausa(im) {
@@ -114,7 +128,7 @@ export default function GestaoClient({ initialImoveis, initialParceiros, initial
             </div>
 
             <div style={{ borderTop: '1px solid var(--line)', paddingTop: 12 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--taupe)', marginBottom: 6 }}>OPÇÃO 2 — Subir vídeo do celular <span style={{ color: 'var(--accent)' }}>(roda automático até no celular)</span></div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--taupe)', marginBottom: 6 }}>OPÇÃO 2 — Vídeo que roda sozinho <span style={{ color: 'var(--accent)' }}>(inclusive no iPhone)</span></div>
               {heroFileUrl ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <video src={heroFileUrl} muted playsInline style={{ width: 90, aspectRatio: '16/9', objectFit: 'cover', borderRadius: 8, background: '#000' }} />
@@ -122,12 +136,21 @@ export default function GestaoClient({ initialImoveis, initialParceiros, initial
                   <button onClick={removerHeroFile} style={{ background: 'transparent', border: '1px solid rgba(200,90,70,.35)', color: '#c88a7a', borderRadius: 8, padding: '8px 12px', fontSize: 12.5 }}>Remover</button>
                 </div>
               ) : (
-                <label style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 8, padding: '11px 16px', borderRadius: 10, border: '1px dashed rgba(232,168,124,.5)', color: 'var(--accent)', fontSize: 13, fontWeight: 700, cursor: 'pointer', background: 'rgba(232,168,124,.05)' }}>
-                  <input type="file" accept="video/*" onChange={subirHeroFile} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} />
-                  {heroUploading ? 'Enviando…' : '↑ Subir vídeo da home'}
-                </label>
+                <>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                    <input value={heroUrlInput} onChange={e => setHeroUrlInput(e.target.value)} placeholder="Colar link do vídeo (MP4) — ex.: R2, sem limite" style={{ flex: 1, minWidth: 200, background: 'var(--bg)', border: '1px solid rgba(243,237,227,.15)', borderRadius: 10, padding: '13px 15px', fontSize: 15, color: 'var(--cream)' }} />
+                    <button onClick={salvarHeroUrl} style={{ padding: '13px 20px', borderRadius: 10, background: 'var(--accent)', color: '#2A2117', fontSize: 13.5, fontWeight: 700, border: 0 }}>Salvar</button>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--muted)', fontSize: 12, margin: '4px 0 8px' }}>
+                    <span style={{ flex: 1, height: 1, background: 'var(--line)' }}></span>ou<span style={{ flex: 1, height: 1, background: 'var(--line)' }}></span>
+                  </div>
+                  <label style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 8, padding: '11px 16px', borderRadius: 10, border: '1px dashed rgba(232,168,124,.5)', color: 'var(--accent)', fontSize: 13, fontWeight: 700, cursor: 'pointer', background: 'rgba(232,168,124,.05)' }}>
+                    <input type="file" accept="video/*" onChange={subirHeroFile} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} />
+                    {heroUploading ? 'Enviando…' : '↑ Subir do celular (até 50 MB)'}
+                  </label>
+                </>
               )}
-              <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 6 }}>Recomendado pra celular. Use um clipe curto e leve (até ~20 s).</div>
+              <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 6 }}>Cole um link .mp4 (Cloudflare R2, grátis e sem limite) para o vídeo rodar sozinho até no iPhone. O upload direto tem limite de 50 MB.</div>
             </div>
           </div>
 
@@ -165,7 +188,8 @@ export default function GestaoClient({ initialImoveis, initialParceiros, initial
           {lista.map(im => {
             const vid = ytId(im.youtube_url);
             const pausado = im.status === 'pausado';
-            const thumb = im.capa_url || (vid ? ytThumb(vid) : '');
+            const foto0 = (im.imovel_fotos || []).slice().sort((a, b) => (a.ordem || 0) - (b.ordem || 0))[0]?.url;
+            const thumb = vid ? ytThumb(vid) : (im.capa_url || foto0 || '');
             return (
               <div key={im.id} style={{ display: 'flex', gap: 14, background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 14, padding: 12, opacity: pausado ? 0.55 : 1 }}>
                 {thumb ? (

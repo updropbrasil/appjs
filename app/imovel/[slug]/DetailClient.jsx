@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ytId, ytThumb, ytEmbed, MOBILIA_LABELS, whatsappLink } from '../../../lib/format';
 
@@ -10,6 +10,8 @@ export default function DetailClient({ im, precoFmt }) {
   const slides = ((vid || nativo) ? [{ video: true }] : []).concat(fotos.map(f => ({ bg: f.url || f })));
   if (slides.length === 0) slides.push({ bg: im.capa_url || '' });
   const [idx, setIdx] = useState(0);
+  const [origin, setOrigin] = useState('');
+  useEffect(() => { setOrigin(window.location.origin); }, []);
   const cur = slides[idx] || {};
   const wa = whatsappLink(`Olá! Tenho interesse no imóvel "${im.titulo}" no ${im.bairro}. Pode me passar mais informações?`);
 
@@ -33,7 +35,7 @@ export default function DetailClient({ im, precoFmt }) {
           <div style={{ width: 360, maxWidth: '100%', flex: '1 1 320px', position: 'relative', aspectRatio: '9/16', maxHeight: 640, borderRadius: 18, overflow: 'hidden', background: 'linear-gradient(150deg,#6B5A44,#463928)', boxShadow: '0 20px 60px rgba(0,0,0,.4)' }}>
             {cur.video ? (
               vid ? (
-                <iframe src={ytEmbed(vid, { controls: 1 })} referrerPolicy="strict-origin-when-cross-origin" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }} allow="autoplay; encrypted-media" allowFullScreen title={im.titulo} />
+                <iframe src={ytEmbed(vid, { controls: 1, origin })} referrerPolicy="strict-origin-when-cross-origin" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }} allow="autoplay; encrypted-media" allowFullScreen title={im.titulo} />
               ) : (
                 <video src={im.video_file_url} controls autoPlay muted loop playsInline style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
               )

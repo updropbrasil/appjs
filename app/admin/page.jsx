@@ -9,7 +9,7 @@ export default async function AdminPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/admin/login');
 
-  const { data: imoveis } = await supabase.from('imoveis').select('*, parceiros(nome)').order('created_at', { ascending: false });
+  const { data: imoveis } = await supabase.from('imoveis').select('*, parceiros(nome), imovel_fotos(url, ordem)').order('created_at', { ascending: false });
   const { data: parceiros } = await supabase.from('parceiros').select('*').order('nome');
   const { data: cfg } = await supabase.from('site_config').select('key, value').in('key', ['hero_video', 'hero_video_file']);
   const cfgMap = {};

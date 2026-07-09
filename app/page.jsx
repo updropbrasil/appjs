@@ -7,7 +7,7 @@ async function getImoveis() {
   const supabase = createClient();
   const { data, error } = await supabase
     .from('imoveis')
-    .select('*')
+    .select('*, imovel_fotos(url, ordem)')
     .eq('status', 'ativo')
     .order('destaque', { ascending: false })
     .order('created_at', { ascending: false });

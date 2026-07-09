@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '../../../lib/supabase-browser';
+import { uploadToR2 } from '../../../lib/r2-upload';
 import { ytId, ytThumb, parsePreco, formatPreco, slugify, tituloSeo, MOBILIA_LABELS, maskThousands, onlyDigits } from '../../../lib/format';
 
 const CATEGORIAS = ['Apartamento', 'Casa', 'Cobertura', 'Flat / Studio', 'Comercial'];
@@ -20,6 +21,7 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
   const [wide, setWide] = useState(false);
   const [novasFotos, setNovasFotos] = useState([]); // {file, preview}
   const [videoArquivo, setVideoArquivo] = useState(null); // {file, preview}
+  const [videoPct, setVideoPct] = useState(0);
   const [dragIdx, setDragIdx] = useState(null);
   function onPickVideo(e) {
     const f = (e.target.files || [])[0];
@@ -45,12 +47,12 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
     mobilia: imovel.mobilia, quartos: imovel.quartos || 0, suites: imovel.suites || 0,
     banheiros: imovel.banheiros || 0, vagas: imovel.vagas || 0, area: imovel.area_m2 || '', andar: imovel.andar || '',
     preco: imovel.preco_cents ? String(imovel.preco_cents / 100) : '', condominio: '', iptu: '',
-    video: imovel.youtube_url || '', videoMode: 'link', descricao: imovel.descricao || '',
+    video: imovel.youtube_url || '', videoUrl: imovel.video_file_url || '', videoMode: imovel.video_file_url ? 'arquivo' : 'link', descricao: imovel.descricao || '',
     parceiro_id: imovel.parceiro_id || '', parceiro_pct: imovel.parceiro_pct || ''
   } : {
     finalidade: 'aluguel', categoria: 'Apartamento', titulo: '', bairro: '', endereco: '', referencia: '',
     mobilia: 'sem', quartos: 3, suites: 1, banheiros: 2, vagas: 2, area: '', andar: '', preco: '', condominio: '', iptu: '',
-    video: '', videoMode: 'link', descricao: '', parceiro_id: '', parceiro_pct: ''
+    video: '', videoUrl: '', videoMode: 'link', descricao: '', parceiro_id: '', parceiro_pct: ''
   });
 
   const set = (patch) => setForm(f => ({ ...f, ...patch }));
@@ -102,9 +104,10 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
         quartos: Number(form.quartos), suites: Number(form.suites), banheiros: Number(form.banheiros),
         vagas: Number(form.vagas), area_m2: form.area ? Number(String(form.area).replace(/\D/g, '')) : null, andar: form.andar || null,
         preco_cents: parsePreco(form.preco), condominio_cents: parsePreco(form.condominio), iptu_cents: parsePreco(form.iptu),
-        youtube_url: (form.videoMode !== 'arquivo' && form.video) ? form.video : null,
-        video_id: (form.videoMode !== 'arquivo' && vid) ? vid : null,
-        capa_url: (form.videoMode !== 'arquivo' && vid) ? `https://i.ytimg.com/vi/${vid}/maxresdefault.jpg` : (imovel?.capa_url || null),
+        youtube_url: (form.videoMode === 'link' && form.video) ? form.video : null,
+        video_id: (form.videoMode === 'link' && vid) ? vid : null,
+        video_file_url: (form.videoMode === 'arquivo' && form.videoUrl) ? form.videoUrl.trim() : (form.videoMode === 'arquivo' ? (imovel?.video_file_url || null) : null),
+        capa_url: (form.videoMode === 'link' && vid) ? `https://i.ytimg.com/vi/${vid}/hqdefault.jpg` : (imovel?.capa_url || null),
         descricao: form.descricao || null,
         parceiro_id: form.parceiro_id || null, parceiro_pct: form.parceiro_id ? (Number(form.parceiro_pct) || null) : null,
         status: 'ativo'
@@ -119,15 +122,26 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
         imovelId = data.id;
       }
 
-      // upload do vídeo do celular (se escolhido) para o bucket 'imoveis-videos'
+      // upload do vídeo (se escolhido): tenta R2 (sem limite); senão Supabase (≤50 MB)
       if (form.videoMode === 'arquivo' && videoArquivo) {
-        const ext = (videoArquivo.file.name.split('.').pop() || 'mp4');
-        const path = `${imovelId}/tour-${Date.now()}.${ext}`;
-        const { error: vErr } = await supabase.storage.from('imoveis-videos').upload(path, videoArquivo.file, { upsert: true, contentType: videoArquivo.file.type });
-        if (!vErr) {
-          const { data: pub } = supabase.storage.from('imoveis-videos').getPublicUrl(path);
-          await supabase.from('imoveis').update({ video_file_url: pub.publicUrl }).eq('id', imovelId);
+        let videoUrl = null;
+        try {
+          videoUrl = await uploadToR2(videoArquivo.file, setVideoPct);
+        } catch (e) {
+          setErro('Falha ao enviar pro Cloudflare (confira o CORS do bucket). Tentando pelo Supabase…');
         }
+        if (!videoUrl) {
+          // fallback Supabase — limite de 50 MB
+          const ext = (videoArquivo.file.name.split('.').pop() || 'mp4');
+          const path = `${imovelId}/tour-${Date.now()}.${ext}`;
+          const { error: vErr } = await supabase.storage.from('imoveis-videos').upload(path, videoArquivo.file, { upsert: true, contentType: videoArquivo.file.type });
+          if (!vErr) {
+            const { data: pub } = supabase.storage.from('imoveis-videos').getPublicUrl(path);
+            videoUrl = pub.publicUrl;
+          }
+        }
+        if (videoUrl) await supabase.from('imoveis').update({ video_file_url: videoUrl }).eq('id', imovelId);
+        setVideoPct(0);
       }
 
       // upload das novas fotos para o bucket 'imoveis-fotos' (comprimidas)
@@ -286,34 +300,47 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
             <>
               <h2 style={h2}>Vídeo e fotos</h2>
               <div style={{ display: 'flex', background: 'var(--bg-2)', borderRadius: 12, padding: 4, border: '1px solid var(--line)' }}>
-                {[['link', 'Link do YouTube'], ['arquivo', 'Subir do celular']].map(([k, l]) => (
+                {[['link', 'YouTube'], ['arquivo', 'Vídeo automático']].map(([k, l]) => (
                   <button key={k} onClick={() => set({ videoMode: k })} style={{ flex: 1, padding: '11px 8px', borderRadius: 9, border: 0, fontSize: 13.5, fontWeight: (form.videoMode || 'link') === k ? 700 : 400, background: (form.videoMode || 'link') === k ? 'var(--accent)' : 'transparent', color: (form.videoMode || 'link') === k ? '#2A2117' : 'var(--taupe)' }}>{l}</button>
                 ))}
               </div>
               {(form.videoMode || 'link') === 'link' && (
                 <Field label="Link do tour no YouTube (vídeo ou Shorts)">
                   <input value={form.video} onChange={e => set({ video: e.target.value })} placeholder="Cole o link… ex.: youtube.com/shorts/…" style={inp} />
-                  <Hint>Recomendado — streaming grátis e ilimitado. O vídeo vira a capa do anúncio.</Hint>
+                  <Hint>Grátis e ilimitado. No computador roda sozinho; no celular o cliente toca pra assistir.</Hint>
                   {vid && <div style={{ aspectRatio: '16/9', borderRadius: 14, background: `url("${ytThumb(vid)}") center/cover`, position: 'relative', marginTop: 4 }}><span style={{ position: 'absolute', bottom: 10, left: 10, background: 'rgba(31,24,18,.8)', fontSize: 11, padding: '4px 9px', borderRadius: 5 }}>✓ Vídeo reconhecido</span></div>}
                 </Field>
               )}
               {(form.videoMode || 'link') === 'arquivo' && (
-                <Field label="Vídeo do celular">
+                <Field label="Vídeo que roda sozinho (inclusive no iPhone)">
+                  <div style={{ background: 'rgba(232,168,124,.06)', border: '1px solid rgba(232,168,124,.22)', borderRadius: 12, padding: '12px 14px' }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)', marginBottom: 8 }}>OPÇÃO A — Colar link do vídeo (MP4) · sem limite de tamanho</div>
+                    <input value={form.videoUrl} onChange={e => set({ videoUrl: e.target.value })} placeholder="https://…/tour.mp4" style={inp} />
+                    <Hint>Link direto de um arquivo .mp4 (ex.: Cloudflare R2 — grátis). Ideal para tours grandes que rodam sozinhos no celular.</Hint>
+                    {form.videoUrl && /^https?:\/\/.+\.mp4/i.test(form.videoUrl) && (
+                      <div style={{ borderRadius: 12, overflow: 'hidden', background: '#000', marginTop: 8 }}>
+                        <video src={form.videoUrl.trim()} muted playsInline controls preload="metadata" style={{ width: '100%', maxHeight: 300, display: 'block' }} />
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--muted)', fontSize: 12 }}>
+                    <span style={{ flex: 1, height: 1, background: 'var(--line)' }}></span>ou<span style={{ flex: 1, height: 1, background: 'var(--line)' }}></span>
+                  </div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--taupe)' }}>OPÇÃO B — Subir do celular (até 50 MB)</div>
                   {!videoArquivo && (
-                    <label style={{ position: 'relative', border: '2px dashed rgba(232,168,124,.4)', borderRadius: 14, padding: '28px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, color: 'var(--accent)', cursor: 'pointer', background: 'rgba(232,168,124,.05)' }}>
+                    <label style={{ position: 'relative', border: '2px dashed rgba(232,168,124,.4)', borderRadius: 14, padding: '24px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, color: 'var(--accent)', cursor: 'pointer', background: 'rgba(232,168,124,.05)' }}>
                       <input type="file" accept="video/*" onChange={onPickVideo} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} />
-                      <span style={{ fontSize: 26 }}>↑</span>
-                      <span style={{ fontSize: 14.5, fontWeight: 700 }}>Subir vídeo do celular</span>
-                      <span style={{ fontSize: 12, color: 'var(--taupe)' }}>Direto da galeria — o vídeo editado</span>
+                      <span style={{ fontSize: 24 }}>↑</span>
+                      <span style={{ fontSize: 14, fontWeight: 700 }}>Subir vídeo do celular</span>
+                      <span style={{ fontSize: 11.5, color: 'var(--taupe)' }}>Só clipes curtos — limite de 50 MB</span>
                     </label>
                   )}
                   {videoArquivo && (
                     <div style={{ position: 'relative', borderRadius: 14, overflow: 'hidden', background: '#000' }}>
-                      <video src={videoArquivo.preview} muted playsInline controls style={{ width: '100%', maxHeight: 340, display: 'block' }} />
+                      <video src={videoArquivo.preview} muted playsInline controls style={{ width: '100%', maxHeight: 300, display: 'block' }} />
                       <button onClick={() => setVideoArquivo(null)} style={{ position: 'absolute', top: 10, right: 10, width: 32, height: 32, borderRadius: 999, background: 'rgba(31,24,18,.85)', color: 'var(--cream)', border: 0, fontSize: 16 }}>×</button>
                     </div>
                   )}
-                  <Hint>Enviado para o Storage ao publicar. Dica: vídeos curtos ({'<'} 1 min) carregam bem melhor.</Hint>
                 </Field>
               )}
               <Field label={`Fotos (${fotosIniciais.length + novasFotos.length})`}>
@@ -390,7 +417,7 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
         {step < 6 && (
           <div style={{ position: 'sticky', bottom: 0, padding: '14px 20px 20px', background: 'linear-gradient(to top,var(--bg) 65%,transparent)' }}>
             <button onClick={next} disabled={salvando} style={{ width: '100%', height: 54, borderRadius: 14, background: 'var(--accent)', color: '#2A2117', fontSize: 16, fontWeight: 700, border: 0 }}>
-              {salvando ? 'Salvando…' : step === 5 ? (editando ? 'Salvar alterações' : 'Publicar imóvel') : 'Continuar'}
+              {salvando ? (videoPct > 0 && videoPct < 100 ? `Enviando vídeo… ${videoPct}%` : 'Salvando…') : step === 5 ? (editando ? 'Salvar alterações' : 'Publicar imóvel') : 'Continuar'}
             </button>
           </div>
         )}

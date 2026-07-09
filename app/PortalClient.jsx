@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { MOBILIA_LABELS, ytId, ytThumb, ytEmbed, formatPreco, maskThousands, whatsappLink } from '../lib/format';
 
@@ -22,6 +22,8 @@ export default function PortalClient({ imoveis, heroVideo, heroVideoFile }) {
   const [heroPlaying, setHeroPlaying] = useState(false);
   const [active, setActive] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [origin, setOrigin] = useState('');
+  useEffect(() => { setOrigin(window.location.origin); }, []);
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 720px)');
     const on = () => setIsMobile(mq.matches);
@@ -76,20 +78,20 @@ export default function PortalClient({ imoveis, heroVideo, heroVideoFile }) {
       </header>
 
       {/* HERO */}
-      <section style={{ position: 'relative', minHeight: 'min(82vh, 660px)', background: heroYt ? `#2A2117 url("https://i.ytimg.com/vi/${heroYt}/maxresdefault.jpg") center/cover` : 'linear-gradient(200deg,#4A3B2A,#2A2117 60%,#1F1812)', overflow: 'hidden', display: 'flex' }}>
+      <section style={{ position: 'relative', minHeight: 'min(82vh, 660px)', background: heroYt ? `#2A2117 url("https://i.ytimg.com/vi/${heroYt}/hqdefault.jpg") center/cover` : 'linear-gradient(200deg,#4A3B2A,#2A2117 60%,#1F1812)', overflow: 'hidden', display: 'flex' }}>
         {heroVideoFile && (
           <video src={heroVideoFile} autoPlay muted loop playsInline preload="auto"
             style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', minWidth: '100%', minHeight: '100%', objectFit: 'cover', border: 0 }} />
         )}
-        {!heroVideoFile && heroYt && !heroPlaying && !isMobile && (
-          <iframe src={ytEmbed(heroYt, { controls: 0 })} referrerPolicy="strict-origin-when-cross-origin"
+        {!heroVideoFile && heroYt && !heroPlaying && !isMobile && origin && (
+          <iframe src={ytEmbed(heroYt, { controls: 0, origin })} referrerPolicy="strict-origin-when-cross-origin"
             style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: '100vw', height: '56.25vw', minHeight: '100%', minWidth: '177.78vh', border: 0, pointerEvents: 'none' }} title="Vídeo em destaque" />
         )}
         {!heroPlaying && (heroVideoFile || heroYt) && (
           <div style={{ position: 'absolute', inset: 0, zIndex: 1, background: 'linear-gradient(to top, #1F1812 5%, rgba(31,24,18,0.55) 30%, rgba(31,24,18,0.15) 55%, transparent 78%), linear-gradient(to right, rgba(31,24,18,0.65) 0%, rgba(31,24,18,0.15) 45%, transparent 70%)' }} />
         )}
         {!heroVideoFile && heroYt && heroPlaying && (
-          <iframe src={ytEmbed(heroYt, { mute: 0, controls: 1, loop: 0 })} referrerPolicy="strict-origin-when-cross-origin"
+          <iframe src={ytEmbed(heroYt, { mute: 0, controls: 1, loop: 0, origin })} referrerPolicy="strict-origin-when-cross-origin"
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0, zIndex: 3 }} allow="autoplay; encrypted-media" allowFullScreen title="Tour em destaque" />
         )}
         {!heroPlaying && (
@@ -164,7 +166,7 @@ export default function PortalClient({ imoveis, heroVideo, heroVideoFile }) {
         )}
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(210px,1fr))', gap: 20 }}>
-          {lista.map(im => <Card key={im.id} im={im} active={active === im.id} setActive={setActive} />)}
+          {lista.map(im => <Card key={im.id} im={im} active={active === im.id} setActive={setActive} origin={origin} />)}
         </div>
         {lista.length === 0 && <div style={{ textAlign: 'center', padding: 48, color: 'var(--muted)' }}>Nenhum imóvel encontrado com esses filtros.</div>}
       </section>
@@ -193,12 +195,22 @@ export default function PortalClient({ imoveis, heroVideo, heroVideoFile }) {
   );
 }
 
-function Card({ im, active, setActive }) {
+function Card({ im, active, setActive, origin }) {
   const vid = ytId(im.youtube_url);
   const nativo = !vid && im.video_file_url;
-  const capa = im.capa_url || (vid ? ytThumb(vid) : '');
+  const foto0 = (im.imovel_fotos || []).slice().sort((a, b) => (a.ordem || 0) - (b.ordem || 0))[0]?.url;
+  const capa = vid ? ytThumb(vid) : (im.capa_url || foto0 || '');
+  const ref = useRef(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    if (!nativo || !ref.current) return;
+    const io = new IntersectionObserver(([e]) => setVisible(e.isIntersecting), { threshold: 0.55 });
+    io.observe(ref.current);
+    return () => io.disconnect();
+  }, [nativo]);
+  const playNativo = nativo && (visible || active);
   return (
-    <Link href={`/imovel/${im.slug}`} style={{ background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 16, overflow: 'hidden', display: 'block' }}
+    <Link ref={ref} href={`/imovel/${im.slug}`} style={{ background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 16, overflow: 'hidden', display: 'block' }}
       onMouseEnter={() => setActive(im.id)} onMouseLeave={() => setActive(null)}>
       <div style={{ position: 'relative', aspectRatio: '9/16', background: 'linear-gradient(150deg,#6B5A44,#463928)', overflow: 'hidden' }}>
         {capa && (
@@ -206,11 +218,11 @@ function Card({ im, active, setActive }) {
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
         )}
         {vid && active && (
-          <iframe src={ytEmbed(vid, { controls: 0 })} referrerPolicy="strict-origin-when-cross-origin"
+          <iframe src={ytEmbed(vid, { controls: 0, origin })} referrerPolicy="strict-origin-when-cross-origin"
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0, pointerEvents: 'none' }} title={im.titulo} />
         )}
-        {nativo && active && (
-          <video src={im.video_file_url} muted loop playsInline autoPlay preload="none"
+        {playNativo && (
+          <video src={im.video_file_url} muted loop playsInline autoPlay preload="metadata"
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
         )}
         <span style={{ position: 'absolute', top: 12, left: 12, background: 'rgba(31,24,18,.85)', color: im.finalidade === 'aluguel' ? 'var(--accent)' : 'var(--green)', fontSize: 10.5, fontWeight: 700, letterSpacing: '.14em', padding: '5px 10px', borderRadius: 6 }}>

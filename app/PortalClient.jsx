@@ -1,7 +1,7 @@
 'use client';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
-import { MOBILIA_LABELS, ytId, ytThumb, ytEmbed, formatPreco, whatsappLink } from '../lib/format';
+import { MOBILIA_LABELS, ytId, ytThumb, ytEmbed, formatPreco, maskThousands, whatsappLink } from '../lib/format';
 
 const BAIRROS = ['Cabo Branco', 'Manaíra', 'Tambaú', 'Bessa', 'Altiplano', 'Intermares'];
 const CATEGORIAS = ['Apartamento', 'Casa', 'Cobertura', 'Flat / Studio'];
@@ -21,9 +21,21 @@ export default function PortalClient({ imoveis, heroVideo }) {
   const [fMobilia, setFMobilia] = useState('todos');
   const [heroPlaying, setHeroPlaying] = useState(false);
   const [active, setActive] = useState(null);
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 720px)');
+    const on = () => setIsMobile(mq.matches);
+    on(); mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
 
   const heroYt = ytId(heroVideo);
   const wa = whatsappLink('Olá! Vi um imóvel no site e tenho interesse.');
+  const goToList = (f) => {
+    setFilter(f);
+    const el = document.getElementById('lista');
+    if (el) window.scrollTo({ top: el.offsetTop - 70, behavior: 'smooth' });
+  };
 
   const num = (v) => { const n = String(v).replace(/\D/g, ''); return n ? Number(n) : null; };
   const pMin = num(fMin), pMax = num(fMax), bairroQ = fBairro.trim().toLowerCase();
@@ -43,37 +55,49 @@ export default function PortalClient({ imoveis, heroVideo }) {
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
       {/* HEADER */}
       <header style={{ position: 'sticky', top: 0, zIndex: 40, background: 'rgba(31,24,18,.92)', backdropFilter: 'blur(10px)', borderBottom: '1px solid var(--line)' }}>
-        <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 48px' }}>
+        <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 56px' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 9 }}>
             <span className="serif" style={{ fontSize: 20, letterSpacing: '.04em', color: 'var(--cream-2)' }}>JASON DIAS</span>
             <span style={{ fontSize: 10, letterSpacing: '.22em', color: 'var(--taupe)' }}>IMÓVEIS</span>
           </div>
-          <a href={wa} target="_blank" rel="noopener" style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--accent)', color: '#2A2117', padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 700 }}>
-            WhatsApp
-          </a>
+          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 12 : 28 }}>
+            {!isMobile && (
+              <nav style={{ display: 'flex', gap: 26, fontSize: 14, color: 'var(--sand)' }}>
+                <button onClick={() => goToList('aluguel')} style={navLink}>Alugar</button>
+                <button onClick={() => goToList('venda')} style={navLink}>Comprar</button>
+                <button onClick={() => goToList('todos')} style={navLink}>Imóveis</button>
+              </nav>
+            )}
+            <a href={wa} target="_blank" rel="noopener" style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--accent)', color: '#2A2117', padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 700 }}>
+              WhatsApp
+            </a>
+          </div>
         </div>
       </header>
 
       {/* HERO */}
-      <section style={{ position: 'relative', minHeight: 'min(80vh, 640px)', background: 'linear-gradient(200deg,#4A3B2A,#2A2117 60%,#1F1812)', overflow: 'hidden', display: 'flex' }}>
-        {heroYt && !heroPlaying && (
+      <section style={{ position: 'relative', minHeight: 'min(82vh, 660px)', background: heroYt ? `#2A2117 url("https://i.ytimg.com/vi/${heroYt}/maxresdefault.jpg") center/cover` : 'linear-gradient(200deg,#4A3B2A,#2A2117 60%,#1F1812)', overflow: 'hidden', display: 'flex' }}>
+        {heroYt && !heroPlaying && !isMobile && (
           <iframe src={ytEmbed(heroYt, { controls: 0 })} referrerPolicy="strict-origin-when-cross-origin"
-            style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: '100vw', height: '56.25vw', minHeight: '100%', minWidth: '177.78vh', border: 0, pointerEvents: 'none', opacity: .55 }} title="Vídeo em destaque" />
+            style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: '100vw', height: '56.25vw', minHeight: '100%', minWidth: '177.78vh', border: 0, pointerEvents: 'none' }} title="Vídeo em destaque" />
+        )}
+        {heroYt && !heroPlaying && (
+          <div style={{ position: 'absolute', inset: 0, zIndex: 1, background: 'linear-gradient(to top, #1F1812 5%, rgba(31,24,18,0.55) 30%, rgba(31,24,18,0.15) 55%, transparent 78%), linear-gradient(to right, rgba(31,24,18,0.65) 0%, rgba(31,24,18,0.15) 45%, transparent 70%)' }} />
         )}
         {heroYt && heroPlaying && (
           <iframe src={ytEmbed(heroYt, { mute: 0, controls: 1, loop: 0 })} referrerPolicy="strict-origin-when-cross-origin"
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0, zIndex: 3 }} allow="autoplay; encrypted-media" allowFullScreen title="Tour em destaque" />
         )}
         {!heroPlaying && (
-          <div className="container" style={{ position: 'relative', zIndex: 2, alignSelf: 'flex-end', width: '100%', padding: '0 48px 56px', background: 'linear-gradient(to top,#1F1812 2%,transparent 60%)' }}>
+          <div className="container" style={{ position: 'relative', zIndex: 2, alignSelf: 'flex-end', width: '100%', padding: '0 56px 56px' }}>
             <div style={{ maxWidth: 620, paddingTop: 120 }}>
               <div style={{ display: 'inline-flex', gap: 8, fontSize: 10.5, letterSpacing: '.2em', color: 'var(--accent)', border: '1px solid rgba(232,168,124,.4)', padding: '6px 12px', borderRadius: 999, marginBottom: 18 }}>JOÃO PESSOA · PB</div>
-              <h1 style={{ fontSize: 'clamp(30px, 4vw, 48px)', lineHeight: 1.14, color: 'var(--cream-2)', margin: 0 }}>Morar bem em João Pessoa começa com um bom tour</h1>
-              <p style={{ fontSize: 16, color: 'var(--sand)', marginTop: 14, maxWidth: 460, lineHeight: 1.55 }}>Todos os nossos imóveis têm tour guiado em vídeo. Conheça por dentro antes de agendar a visita.</p>
+              <h1 style={{ fontSize: 'clamp(26px, 4vw, 48px)', lineHeight: 1.14, color: 'var(--cream-2)', margin: 0, textShadow: '0 2px 24px rgba(0,0,0,.45)' }}>Morar bem em João Pessoa começa com um bom tour</h1>
+              <p style={{ fontSize: 'clamp(14px, 1.6vw, 16px)', color: 'var(--cream)', marginTop: 14, maxWidth: 460, lineHeight: 1.55, textShadow: '0 1px 12px rgba(0,0,0,.5)' }}>Todos os nossos imóveis têm tour guiado em vídeo. Conheça por dentro antes de agendar a visita.</p>
               <div style={{ display: 'flex', gap: 10, marginTop: 24, flexWrap: 'wrap', alignItems: 'center' }}>
                 <button onClick={() => setFilter('aluguel')} style={{ background: 'var(--accent)', color: '#2A2117', padding: '13px 24px', borderRadius: 8, fontSize: 14, fontWeight: 700, border: 0 }}>Ver imóveis para alugar</button>
-                <button onClick={() => setFilter('venda')} style={{ border: '1px solid rgba(243,237,227,.35)', background: 'transparent', color: 'var(--cream)', padding: '13px 24px', borderRadius: 8, fontSize: 14, fontWeight: 600 }}>À venda</button>
-                {heroYt && <button onClick={() => setHeroPlaying(true)} style={{ background: 'transparent', border: 0, color: 'var(--sand)', fontSize: 13, cursor: 'pointer' }}>▶ Assistir com som</button>}
+                <button onClick={() => setFilter('venda')} style={{ border: '1px solid rgba(243,237,227,.5)', background: 'rgba(31,24,18,.25)', color: 'var(--cream)', padding: '13px 24px', borderRadius: 8, fontSize: 14, fontWeight: 600 }}>À venda</button>
+                {heroYt && <button onClick={() => setHeroPlaying(true)} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'transparent', border: 0, color: 'var(--cream)', fontSize: 13, cursor: 'pointer', textShadow: '0 1px 8px rgba(0,0,0,.6)' }}><span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: 999, background: 'rgba(31,24,18,.5)', border: '1px solid rgba(243,237,227,.4)' }}>▶</span> Assistir com som</button>}
               </div>
             </div>
           </div>
@@ -81,7 +105,7 @@ export default function PortalClient({ imoveis, heroVideo }) {
       </section>
 
       {/* LISTA */}
-      <section className="container" style={{ padding: '36px 48px 56px' }}>
+      <section id="lista" className="container" style={{ padding: '36px 56px 56px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', marginBottom: 22 }}>
           <h2 style={{ fontSize: 24, color: 'var(--cream-2)', margin: 0 }}>Imóveis disponíveis</h2>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -106,9 +130,15 @@ export default function PortalClient({ imoveis, heroVideo }) {
             </Group>
             <Group label="FAIXA DE VALOR">
               <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-                <input value={fMin} onChange={e => setFMin(e.target.value)} placeholder="R$ mínimo" inputMode="numeric" style={{ ...inp, width: 160 }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg)', border: '1px solid rgba(243,237,227,.15)', borderRadius: 12, padding: '0 14px', width: 180 }}>
+                  <span style={{ fontSize: 14, color: 'var(--muted)' }}>R$</span>
+                  <input value={maskThousands(fMin)} onChange={e => setFMin(e.target.value)} placeholder="mínimo" inputMode="numeric" style={{ flex: 1, minWidth: 0, background: 'transparent', border: 0, padding: '13px 0', fontSize: 16, color: 'var(--cream)' }} />
+                </div>
                 <span style={{ color: 'var(--muted)' }}>até</span>
-                <input value={fMax} onChange={e => setFMax(e.target.value)} placeholder="R$ máximo" inputMode="numeric" style={{ ...inp, width: 160 }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg)', border: '1px solid rgba(243,237,227,.15)', borderRadius: 12, padding: '0 14px', width: 180 }}>
+                  <span style={{ fontSize: 14, color: 'var(--muted)' }}>R$</span>
+                  <input value={maskThousands(fMax)} onChange={e => setFMax(e.target.value)} placeholder="máximo" inputMode="numeric" style={{ flex: 1, minWidth: 0, background: 'transparent', border: 0, padding: '13px 0', fontSize: 16, color: 'var(--cream)' }} />
+                </div>
               </div>
             </Group>
             <Group label="TIPO DE IMÓVEL">
@@ -150,7 +180,7 @@ export default function PortalClient({ imoveis, heroVideo }) {
         </div>
       </section>
 
-      <footer className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', padding: '24px 48px', color: 'var(--muted)', fontSize: 12.5 }}>
+      <footer className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', padding: '24px 56px', color: 'var(--muted)', fontSize: 12.5 }}>
         <span className="serif" style={{ color: 'var(--sand)', fontSize: 14 }}>JASON DIAS IMÓVEIS <span style={{ fontFamily: 'Karla, sans-serif', fontSize: 11, color: 'var(--muted)', letterSpacing: '.06em' }}>· CRECI 8085</span></span>
         <span>João Pessoa · PB — Aluguel e venda de médio-alto padrão</span>
         <Link href="/admin/login" style={{ fontSize: 11.5, color: '#6b5f4e' }}>Área do corretor</Link>
@@ -161,23 +191,31 @@ export default function PortalClient({ imoveis, heroVideo }) {
 
 function Card({ im, active, setActive }) {
   const vid = ytId(im.youtube_url);
+  const nativo = !vid && im.video_file_url;
   const capa = im.capa_url || (vid ? ytThumb(vid) : '');
   return (
-    <Link href={`/imovel/${im.slug}`} style={{ background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 14, overflow: 'hidden', display: 'block' }}
+    <Link href={`/imovel/${im.slug}`} style={{ background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 16, overflow: 'hidden', display: 'block' }}
       onMouseEnter={() => setActive(im.id)} onMouseLeave={() => setActive(null)}>
       <div style={{ position: 'relative', aspectRatio: '9/16', background: capa ? `url("${capa}") center/cover` : 'linear-gradient(150deg,#6B5A44,#463928)', overflow: 'hidden' }}>
         {vid && active && (
           <iframe src={ytEmbed(vid, { controls: 0 })} referrerPolicy="strict-origin-when-cross-origin"
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0, pointerEvents: 'none' }} title={im.titulo} />
         )}
+        {nativo && (
+          <video src={im.video_file_url} muted loop playsInline autoPlay preload="metadata"
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+        )}
         <span style={{ position: 'absolute', top: 12, left: 12, background: 'rgba(31,24,18,.85)', color: im.finalidade === 'aluguel' ? 'var(--accent)' : 'var(--green)', fontSize: 10.5, fontWeight: 700, letterSpacing: '.14em', padding: '5px 10px', borderRadius: 6 }}>
           {im.finalidade === 'aluguel' ? 'ALUGUEL' : 'VENDA'}
         </span>
+        {(vid || nativo) && (
+          <span style={{ position: 'absolute', bottom: 12, left: 12, display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(31,24,18,.72)', color: 'var(--cream)', fontSize: 11, padding: '5px 9px', borderRadius: 6 }}>▶ Tour em vídeo</span>
+        )}
       </div>
-      <div style={{ padding: '14px 16px 16px' }}>
-        <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--cream-2)' }}>{formatPreco(im.preco_cents)}<span style={{ fontSize: 12, fontWeight: 400, color: 'var(--taupe)' }}>{im.finalidade === 'aluguel' ? '/mês' : ''}</span></div>
-        <div style={{ fontSize: 13, color: 'var(--sand)', margin: '4px 0 9px' }}>{im.bairro} · João Pessoa</div>
-        <div style={{ display: 'flex', gap: '6px 11px', fontSize: 11.5, color: 'var(--muted)', flexWrap: 'wrap' }}>
+      <div style={{ padding: '16px 18px 18px' }}>
+        <div style={{ fontSize: 21, fontWeight: 700, color: 'var(--cream-2)', letterSpacing: '-.01em' }}>{formatPreco(im.preco_cents)}<span style={{ fontSize: 13, fontWeight: 400, color: 'var(--taupe)' }}>{im.finalidade === 'aluguel' ? '/mês' : ''}</span></div>
+        <div style={{ fontSize: 14, color: 'var(--sand)', margin: '6px 0 12px', lineHeight: 1.4 }}>{im.titulo ? `${im.titulo}` : im.categoria} · <strong style={{ color: 'var(--cream)', fontWeight: 600 }}>{im.bairro}</strong></div>
+        <div style={{ display: 'flex', gap: '8px 14px', fontSize: 12.5, color: 'var(--taupe)', flexWrap: 'wrap', borderTop: '1px solid var(--line)', paddingTop: 12 }}>
           {im.quartos ? <span>{im.quartos} quartos</span> : null}
           {im.banheiros ? <span>{im.banheiros} banh.</span> : null}
           {im.vagas ? <span>{im.vagas} vagas</span> : null}
@@ -194,6 +232,9 @@ const chip = (sel) => ({
   background: sel ? 'rgba(232,168,124,.12)' : 'transparent', color: sel ? 'var(--accent)' : 'var(--cream)',
   border: `1px solid ${sel ? 'var(--accent)' : 'rgba(243,237,227,.2)'}`, cursor: 'pointer'
 });
+const navLink = {
+  background: 'transparent', border: 0, color: 'var(--sand)', fontSize: 14, cursor: 'pointer', padding: 0, fontFamily: 'inherit'
+};
 const inp = {
   width: '100%', maxWidth: 420, background: 'var(--bg)', border: '1px solid rgba(243,237,227,.15)',
   borderRadius: 12, padding: '13px 16px', fontSize: 16, color: 'var(--cream)'

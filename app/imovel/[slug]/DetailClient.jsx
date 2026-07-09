@@ -5,8 +5,9 @@ import { ytId, ytThumb, ytEmbed, MOBILIA_LABELS, whatsappLink } from '../../../l
 
 export default function DetailClient({ im, precoFmt }) {
   const vid = ytId(im.youtube_url);
+  const nativo = !vid && im.video_file_url;
   const fotos = Array.isArray(im.fotos) ? im.fotos : [];
-  const slides = (vid ? [{ video: true }] : []).concat(fotos.map(f => ({ bg: f.url || f })));
+  const slides = ((vid || nativo) ? [{ video: true }] : []).concat(fotos.map(f => ({ bg: f.url || f })));
   if (slides.length === 0) slides.push({ bg: im.capa_url || '' });
   const [idx, setIdx] = useState(0);
   const cur = slides[idx] || {};
@@ -31,7 +32,11 @@ export default function DetailClient({ im, precoFmt }) {
           {/* MÍDIA */}
           <div style={{ width: 360, maxWidth: '100%', flex: '1 1 320px', position: 'relative', aspectRatio: '9/16', maxHeight: 640, borderRadius: 18, overflow: 'hidden', background: 'linear-gradient(150deg,#6B5A44,#463928)', boxShadow: '0 20px 60px rgba(0,0,0,.4)' }}>
             {cur.video ? (
-              <iframe src={ytEmbed(vid, { controls: 1 })} referrerPolicy="strict-origin-when-cross-origin" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }} allow="autoplay; encrypted-media" allowFullScreen title={im.titulo} />
+              vid ? (
+                <iframe src={ytEmbed(vid, { controls: 1 })} referrerPolicy="strict-origin-when-cross-origin" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }} allow="autoplay; encrypted-media" allowFullScreen title={im.titulo} />
+              ) : (
+                <video src={im.video_file_url} controls autoPlay muted loop playsInline style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+              )
             ) : (
               <div style={{ position: 'absolute', inset: 0, background: cur.bg ? `url("${cur.bg}") center/cover` : 'transparent' }} />
             )}

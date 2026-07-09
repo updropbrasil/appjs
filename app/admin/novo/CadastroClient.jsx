@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '../../../lib/supabase-browser';
-import { ytId, ytThumb, parsePreco, formatPreco, slugify, tituloSeo, MOBILIA_LABELS } from '../../../lib/format';
+import { ytId, ytThumb, parsePreco, formatPreco, slugify, tituloSeo, MOBILIA_LABELS, maskThousands, onlyDigits } from '../../../lib/format';
 
 const CATEGORIAS = ['Apartamento', 'Casa', 'Cobertura', 'Flat / Studio', 'Comercial'];
 const BAIRROS = ['Cabo Branco', 'Manaíra', 'Tambaú', 'Bessa', 'Altiplano', 'Intermares'];
@@ -19,18 +19,24 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
   const [erro, setErro] = useState('');
   const [wide, setWide] = useState(false);
   const [novasFotos, setNovasFotos] = useState([]); // {file, preview}
+  const [videoArquivo, setVideoArquivo] = useState(null); // {file, preview}
+  function onPickVideo(e) {
+    const f = (e.target.files || [])[0];
+    if (f) setVideoArquivo({ file: f, preview: URL.createObjectURL(f) });
+    e.target.value = '';
+  }
   const [form, setForm] = useState(() => imovel ? {
     finalidade: imovel.finalidade, categoria: imovel.categoria, titulo: imovel.titulo,
     bairro: imovel.bairro, endereco: imovel.endereco || '', referencia: imovel.referencia || '',
     mobilia: imovel.mobilia, quartos: imovel.quartos || 0, suites: imovel.suites || 0,
     banheiros: imovel.banheiros || 0, vagas: imovel.vagas || 0, area: imovel.area_m2 || '',
     preco: imovel.preco_cents ? String(imovel.preco_cents / 100) : '', condominio: '', iptu: '',
-    video: imovel.youtube_url || '', descricao: imovel.descricao || '',
+    video: imovel.youtube_url || '', videoMode: 'link', descricao: imovel.descricao || '',
     parceiro_id: imovel.parceiro_id || '', parceiro_pct: imovel.parceiro_pct || ''
   } : {
     finalidade: 'aluguel', categoria: 'Apartamento', titulo: '', bairro: '', endereco: '', referencia: '',
     mobilia: 'sem', quartos: 3, suites: 1, banheiros: 2, vagas: 2, area: '', preco: '', condominio: '', iptu: '',
-    video: '', descricao: '', parceiro_id: '', parceiro_pct: ''
+    video: '', videoMode: 'link', descricao: '', parceiro_id: '', parceiro_pct: ''
   });
 
   const set = (patch) => setForm(f => ({ ...f, ...patch }));
@@ -61,7 +67,9 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
         quartos: Number(form.quartos), suites: Number(form.suites), banheiros: Number(form.banheiros),
         vagas: Number(form.vagas), area_m2: form.area ? Number(String(form.area).replace(/\D/g, '')) : null,
         preco_cents: parsePreco(form.preco), condominio_cents: parsePreco(form.condominio), iptu_cents: parsePreco(form.iptu),
-        youtube_url: form.video || null, video_id: vid || null, descricao: form.descricao || null,
+        youtube_url: (form.videoMode !== 'arquivo' && form.video) ? form.video : null,
+        video_id: (form.videoMode !== 'arquivo' && vid) ? vid : null,
+        descricao: form.descricao || null,
         parceiro_id: form.parceiro_id || null, parceiro_pct: form.parceiro_id ? (Number(form.parceiro_pct) || null) : null,
         status: 'ativo'
       };
@@ -73,6 +81,17 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
         const { data, error } = await supabase.from('imoveis').insert(payload).select('id').single();
         if (error) throw error;
         imovelId = data.id;
+      }
+
+      // upload do vídeo do celular (se escolhido) para o bucket 'imoveis-videos'
+      if (form.videoMode === 'arquivo' && videoArquivo) {
+        const ext = (videoArquivo.file.name.split('.').pop() || 'mp4');
+        const path = `${imovelId}/tour-${Date.now()}.${ext}`;
+        const { error: vErr } = await supabase.storage.from('imoveis-videos').upload(path, videoArquivo.file, { upsert: true, contentType: videoArquivo.file.type });
+        if (!vErr) {
+          const { data: pub } = supabase.storage.from('imoveis-videos').getPublicUrl(path);
+          await supabase.from('imoveis').update({ video_file_url: pub.publicUrl }).eq('id', imovelId);
+        }
       }
 
       // upload das novas fotos para o bucket 'imoveis-fotos'
@@ -141,7 +160,13 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
             <>
               <h2 style={h2}>Onde fica?</h2>
               <Field label="Bairro">
-                <Chips opts={BAIRROS.map(b => [b, b])} value={form.bairro} onPick={b => set({ bairro: b })} />
+                <input value={form.bairro} onChange={e => set({ bairro: e.target.value })} placeholder="Digite o bairro… ex.: Cabo Branco" style={inp} />
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 2 }}>
+                  {BAIRROS.map(b => (
+                    <button key={b} onClick={() => set({ bairro: b })} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 13, fontWeight: form.bairro === b ? 700 : 400, border: `1px solid ${form.bairro === b ? 'var(--accent)' : 'rgba(243,237,227,.2)'}`, background: form.bairro === b ? 'rgba(232,168,124,.12)' : 'transparent', color: form.bairro === b ? 'var(--accent)' : 'var(--sand)' }}>{b}</button>
+                  ))}
+                </div>
+                <Hint>Toque numa sugestão ou escreva outro bairro.</Hint>
               </Field>
               <Field label="Endereço completo — 🔒 NÃO APARECE NO SITE">
                 <input value={form.endereco} onChange={e => set({ endereco: e.target.value })} placeholder="Rua, número, complemento…" style={inp} />
@@ -181,13 +206,13 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
               <Field label={isAluguel ? 'Valor do aluguel' : 'Valor de venda'}>
                 <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-2)', border: '1px solid rgba(232,168,124,.4)', borderRadius: 14, padding: '0 18px' }}>
                   <span style={{ fontSize: 18, color: 'var(--taupe)' }}>R$</span>
-                  <input value={form.preco} onChange={e => set({ preco: e.target.value })} placeholder="0" inputMode="numeric" style={{ flex: 1, background: 'transparent', border: 0, padding: '18px 12px', fontSize: 24, fontWeight: 700, color: 'var(--cream-2)', minWidth: 0 }} />
+                  <input value={maskThousands(form.preco)} onChange={e => set({ preco: onlyDigits(e.target.value) })} placeholder="0" inputMode="numeric" style={{ flex: 1, background: 'transparent', border: 0, padding: '18px 12px', fontSize: 24, fontWeight: 700, color: 'var(--cream-2)', minWidth: 0 }} />
                   {isAluguel && <span style={{ fontSize: 14, color: 'var(--taupe)' }}>/mês</span>}
                 </div>
               </Field>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <Field label="Condomínio"><input value={form.condominio} onChange={e => set({ condominio: e.target.value })} placeholder="R$ (opcional)" inputMode="numeric" style={inp} /></Field>
-                <Field label="IPTU"><input value={form.iptu} onChange={e => set({ iptu: e.target.value })} placeholder="R$ (opcional)" inputMode="numeric" style={inp} /></Field>
+                <Field label="Condomínio"><div style={dinInp}><span style={dinR}>R$</span><input value={maskThousands(form.condominio)} onChange={e => set({ condominio: onlyDigits(e.target.value) })} placeholder="opcional" inputMode="numeric" style={dinField} /></div></Field>
+                <Field label="IPTU"><div style={dinInp}><span style={dinR}>R$</span><input value={maskThousands(form.iptu)} onChange={e => set({ iptu: onlyDigits(e.target.value) })} placeholder="opcional" inputMode="numeric" style={dinField} /></div></Field>
               </div>
               <div style={{ background: 'rgba(232,168,124,.06)', border: '1px solid rgba(232,168,124,.22)', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--sand)' }}>Parceria <span style={{ fontWeight: 400, color: 'var(--muted)' }}>· controle interno</span></div>
@@ -209,11 +234,37 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
           {step === 4 && (
             <>
               <h2 style={h2}>Vídeo e fotos</h2>
-              <Field label="Link do tour no YouTube (vídeo ou Shorts)">
-                <input value={form.video} onChange={e => set({ video: e.target.value })} placeholder="Cole o link… ex.: youtube.com/shorts/…" style={inp} />
-                <Hint>O vídeo vira a capa do anúncio — é a primeira coisa que o cliente vê.</Hint>
-              </Field>
-              {vid && <div style={{ aspectRatio: '16/9', borderRadius: 14, background: `url("${ytThumb(vid)}") center/cover`, position: 'relative' }}><span style={{ position: 'absolute', bottom: 10, left: 10, background: 'rgba(31,24,18,.8)', fontSize: 11, padding: '4px 9px', borderRadius: 5 }}>✓ Vídeo reconhecido</span></div>}
+              <div style={{ display: 'flex', background: 'var(--bg-2)', borderRadius: 12, padding: 4, border: '1px solid var(--line)' }}>
+                {[['link', 'Link do YouTube'], ['arquivo', 'Subir do celular']].map(([k, l]) => (
+                  <button key={k} onClick={() => set({ videoMode: k })} style={{ flex: 1, padding: '11px 8px', borderRadius: 9, border: 0, fontSize: 13.5, fontWeight: (form.videoMode || 'link') === k ? 700 : 400, background: (form.videoMode || 'link') === k ? 'var(--accent)' : 'transparent', color: (form.videoMode || 'link') === k ? '#2A2117' : 'var(--taupe)' }}>{l}</button>
+                ))}
+              </div>
+              {(form.videoMode || 'link') === 'link' && (
+                <Field label="Link do tour no YouTube (vídeo ou Shorts)">
+                  <input value={form.video} onChange={e => set({ video: e.target.value })} placeholder="Cole o link… ex.: youtube.com/shorts/…" style={inp} />
+                  <Hint>Recomendado — streaming grátis e ilimitado. O vídeo vira a capa do anúncio.</Hint>
+                  {vid && <div style={{ aspectRatio: '16/9', borderRadius: 14, background: `url("${ytThumb(vid)}") center/cover`, position: 'relative', marginTop: 4 }}><span style={{ position: 'absolute', bottom: 10, left: 10, background: 'rgba(31,24,18,.8)', fontSize: 11, padding: '4px 9px', borderRadius: 5 }}>✓ Vídeo reconhecido</span></div>}
+                </Field>
+              )}
+              {(form.videoMode || 'link') === 'arquivo' && (
+                <Field label="Vídeo do celular">
+                  {!videoArquivo && (
+                    <label style={{ position: 'relative', border: '2px dashed rgba(232,168,124,.4)', borderRadius: 14, padding: '28px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, color: 'var(--accent)', cursor: 'pointer', background: 'rgba(232,168,124,.05)' }}>
+                      <input type="file" accept="video/*" onChange={onPickVideo} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} />
+                      <span style={{ fontSize: 26 }}>↑</span>
+                      <span style={{ fontSize: 14.5, fontWeight: 700 }}>Subir vídeo do celular</span>
+                      <span style={{ fontSize: 12, color: 'var(--taupe)' }}>Direto da galeria — o vídeo editado</span>
+                    </label>
+                  )}
+                  {videoArquivo && (
+                    <div style={{ position: 'relative', borderRadius: 14, overflow: 'hidden', background: '#000' }}>
+                      <video src={videoArquivo.preview} muted playsInline controls style={{ width: '100%', maxHeight: 340, display: 'block' }} />
+                      <button onClick={() => setVideoArquivo(null)} style={{ position: 'absolute', top: 10, right: 10, width: 32, height: 32, borderRadius: 999, background: 'rgba(31,24,18,.85)', color: 'var(--cream)', border: 0, fontSize: 16 }}>×</button>
+                    </div>
+                  )}
+                  <Hint>Enviado para o Storage ao publicar. Dica: vídeos curtos ({'<'} 1 min) carregam bem melhor.</Hint>
+                </Field>
+              )}
               <Field label={`Fotos (${fotosIniciais.length + novasFotos.length})`}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
                   {fotosIniciais.map(f => <div key={f.id} style={{ aspectRatio: 1, borderRadius: 12, background: `url("${f.url}") center/cover` }} />)}
@@ -304,6 +355,9 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
 }
 
 const inp = { width: '100%', boxSizing: 'border-box', background: 'var(--bg-2)', border: '1px solid rgba(243,237,227,.15)', borderRadius: 12, padding: '15px 16px', fontSize: 16, color: 'var(--cream)' };
+const dinInp = { display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg-2)', border: '1px solid rgba(243,237,227,.15)', borderRadius: 12, padding: '0 14px' };
+const dinR = { fontSize: 14, color: 'var(--muted)' };
+const dinField = { flex: 1, minWidth: 0, background: 'transparent', border: 0, padding: '15px 0', fontSize: 16, color: 'var(--cream)' };
 const h2 = { fontSize: 24, color: 'var(--cream-2)', margin: 0 };
 const bigOpt = (sel) => ({ padding: '22px 16px', borderRadius: 14, border: `2px solid ${sel ? 'var(--accent)' : 'rgba(243,237,227,.15)'}`, background: sel ? 'rgba(232,168,124,.1)' : 'var(--bg-2)', textAlign: 'center', cursor: 'pointer' });
 const counterBtn = (filled) => ({ width: 44, height: 44, borderRadius: 999, border: filled ? 0 : '1px solid rgba(243,237,227,.2)', background: filled ? 'var(--accent)' : 'transparent', color: filled ? '#2A2117' : 'var(--sand)', fontSize: 20 });

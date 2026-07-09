@@ -15,10 +15,9 @@ export default function LoginPage() {
     e.preventDefault();
     setErro(''); setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
-    setLoading(false);
-    if (error) { setErro('E-mail ou senha inválidos.'); return; }
-    router.push('/admin');
-    router.refresh();
+    if (error) { setErro('E-mail ou senha inválidos.'); setLoading(false); return; }
+    // navegação completa garante que o cookie de sessão chegue ao servidor de 1ª vez
+    window.location.assign('/admin');
   }
 
   return (

@@ -68,6 +68,7 @@ create table if not exists imoveis (
   -- mídia
   youtube_url   text,                           -- link do vídeo/Shorts (streaming grátis)
   video_id      text,                           -- id extraído do YouTube (capa/embed)
+  video_file_url text,                          -- vídeo subido do celular (bucket imoveis-videos)
   capa_url      text,                           -- foto de capa (fallback do storage)
 
   -- parceria (controle interno)

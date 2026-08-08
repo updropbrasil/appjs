@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { ytId, ytThumb, ytEmbed, MOBILIA_LABELS, whatsappLink } from '../../../lib/format';
 
@@ -7,13 +7,45 @@ export default function DetailClient({ im, precoFmt }) {
   const vid = ytId(im.youtube_url);
   const nativo = !vid && im.video_file_url;
   const fotos = Array.isArray(im.fotos) ? im.fotos : [];
-  const slides = ((vid || nativo) ? [{ video: true }] : []).concat(fotos.map(f => ({ bg: f.url || f })));
+  const slides = ((vid || nativo) ? [{ video: true }] : []).concat(fotos.map(f => ({ bg: f.url || f, thumb: f.thumb_url || null })));
   if (slides.length === 0) slides.push({ bg: im.capa_url || '' });
   const [idx, setIdx] = useState(0);
   const [origin, setOrigin] = useState('');
+  const [full, setFull] = useState(false);
   useEffect(() => { setOrigin(window.location.origin); }, []);
+  useEffect(() => {
+    if (!full) return;
+    const el = fullTrackRef.current;
+    if (el) el.scrollLeft = el.clientWidth * idx;
+    const onKey = (e) => {
+      if (e.key === 'Escape') setFull(false);
+      if (e.key === 'ArrowRight') go(idx + 1);
+      if (e.key === 'ArrowLeft') go(idx - 1);
+    };
+    window.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = ''; };
+  }, [full, idx, slides.length]);
+  // swipe: trilha com rolagem nativa (fluido no celular) — sincroniza o índice
+  const trackRef = useRef(null);
+  const fullTrackRef = useRef(null);
+  const scrollTo = (ref, k) => {
+    const el = ref.current;
+    if (!el) return;
+    el.scrollTo({ left: el.clientWidth * k, behavior: 'smooth' });
+  };
+  const onTrackScroll = (e) => {
+    const el = e.currentTarget;
+    const k = Math.round(el.scrollLeft / el.clientWidth);
+    if (k !== idx) setIdx(Math.max(0, Math.min(slides.length - 1, k)));
+  };
+  const go = (k) => {
+    const t = Math.max(0, Math.min(slides.length - 1, k));
+    setIdx(t);
+    scrollTo(full ? fullTrackRef : trackRef, t);
+  };
   const cur = slides[idx] || {};
-  const wa = whatsappLink(`Olá! Tenho interesse no imóvel "${im.titulo}" no ${im.bairro}. Pode me passar mais informações?`);
+  const wa = whatsappLink(`Olá! Tenho interesse no imóvel ${im.codigo ? `(cód. ${im.codigo}) ` : ''}"${im.titulo}" no ${im.bairro}. Pode me passar mais informações?`);
 
   const feats = [
     ['Quartos', im.quartos], ['Banheiros', im.banheiros], ['Vagas', im.vagas],
@@ -33,20 +65,35 @@ export default function DetailClient({ im, precoFmt }) {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 48, alignItems: 'flex-start' }}>
           {/* MÍDIA */}
           <div style={{ width: 360, maxWidth: '100%', flex: '1 1 320px', position: 'relative', aspectRatio: '9/16', maxHeight: 640, borderRadius: 18, overflow: 'hidden', background: 'linear-gradient(150deg,#6B5A44,#463928)', boxShadow: '0 20px 60px rgba(0,0,0,.4)' }}>
-            {cur.video ? (
-              vid ? (
-                <iframe src={ytEmbed(vid, { controls: 1, origin })} referrerPolicy="strict-origin-when-cross-origin" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }} allow="autoplay; encrypted-media" allowFullScreen title={im.titulo} />
-              ) : (
-                <video src={im.video_file_url} controls autoPlay muted loop playsInline style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-              )
-            ) : (
-              <div style={{ position: 'absolute', inset: 0, background: cur.bg ? `url("${cur.bg}") center/cover` : 'transparent' }} />
+            <div ref={trackRef} onScroll={onTrackScroll} className="no-scrollbar"
+              style={{ position: 'absolute', inset: 0, display: 'flex', overflowX: 'auto', overflowY: 'hidden', scrollSnapType: 'x mandatory', WebkitOverflowScrolling: 'touch' }}>
+              {slides.map((s, k) => (
+                <div key={k} style={{ flex: '0 0 100%', width: '100%', height: '100%', position: 'relative', scrollSnapAlign: 'center', scrollSnapStop: 'always' }}>
+                  {s.video ? (
+                    vid ? (
+                      <iframe src={ytEmbed(vid, { controls: 1, origin })} referrerPolicy="strict-origin-when-cross-origin" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }} allow="autoplay; encrypted-media" allowFullScreen title={im.titulo} />
+                    ) : (
+                      <video src={im.video_file_url} controls autoPlay muted loop playsInline style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+                    )
+                  ) : (
+                    <>
+                      {s.thumb && <img src={s.thumb} alt="" aria-hidden="true" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(6px)', transform: 'scale(1.04)' }} />}
+                      <img src={s.bg} alt={`${im.titulo} — foto ${k}`} onClick={() => setFull(true)}
+                        loading={k <= 2 ? 'eager' : 'lazy'} fetchPriority={k <= 1 ? 'high' : 'auto'} decoding="async"
+                        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', cursor: 'zoom-in' }} />
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+            {!cur.video && (
+              <button onClick={() => setFull(true)} style={{ position: 'absolute', top: 12, right: 12, display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(31,24,18,.75)', color: '#F3EDE3', border: 0, borderRadius: 8, padding: '8px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', zIndex: 6 }}>⤢ Tela cheia</button>
             )}
-            {idx > 0 && <button onClick={() => setIdx(idx - 1)} style={navBtn('left')}>‹</button>}
-            {idx < slides.length - 1 && <button onClick={() => setIdx(idx + 1)} style={navBtn('right')}>›</button>}
-            <div style={{ position: 'absolute', bottom: 14, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6 }}>
+            {idx > 0 && <button onClick={() => go(idx - 1)} style={navBtn('left')}>‹</button>}
+            {idx < slides.length - 1 && <button onClick={() => go(idx + 1)} style={navBtn('right')}>›</button>}
+            <div style={{ position: 'absolute', bottom: 14, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6, zIndex: 6 }}>
               {slides.map((_, k) => (
-                <button key={k} onClick={() => setIdx(k)} style={{ width: k === idx ? 20 : 6, height: 6, borderRadius: 999, border: 0, background: k === idx ? 'var(--accent)' : 'rgba(243,237,227,.5)', cursor: 'pointer', padding: 0 }} />
+                <button key={k} onClick={() => go(k)} style={{ width: k === idx ? 20 : 6, height: 6, borderRadius: 999, border: 0, background: k === idx ? 'var(--accent)' : 'rgba(243,237,227,.5)', cursor: 'pointer', padding: 0 }} />
               ))}
             </div>
           </div>
@@ -55,6 +102,7 @@ export default function DetailClient({ im, precoFmt }) {
           <div style={{ flex: '2 1 380px', minWidth: 280, display: 'flex', flexDirection: 'column', gap: 22 }}>
             <div>
               <span style={{ display: 'inline-flex', background: 'rgba(31,24,18,.6)', border: '1px solid var(--line)', color: im.finalidade === 'aluguel' ? 'var(--accent)' : 'var(--green)', fontSize: 10.5, fontWeight: 700, letterSpacing: '.14em', padding: '6px 12px', borderRadius: 6, marginBottom: 14 }}>{im.finalidade === 'aluguel' ? 'ALUGUEL' : 'VENDA'}</span>
+              {im.codigo && <span style={{ display: 'inline-flex', marginLeft: 8, background: 'var(--bg-2)', border: '1px solid var(--line)', color: 'var(--taupe)', fontSize: 10.5, fontWeight: 700, letterSpacing: '.14em', padding: '6px 12px', borderRadius: 6, marginBottom: 14 }}>CÓD. {im.codigo}</span>}
               <h1 style={{ fontSize: 32, lineHeight: 1.15, color: 'var(--cream-2)', margin: 0 }}>{im.titulo}</h1>
               <div style={{ fontSize: 15, color: 'var(--taupe)', marginTop: 8 }}>{im.bairro} · João Pessoa</div>
             </div>
@@ -81,9 +129,51 @@ export default function DetailClient({ im, precoFmt }) {
           </div>
         </div>
       </div>
+      {/* TELA CHEIA */}
+      {full && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: '#0F0B08' }}>
+          <div ref={fullTrackRef} onScroll={onTrackScroll} className="no-scrollbar"
+            style={{ position: 'absolute', inset: 0, display: 'flex', overflowX: 'auto', overflowY: 'hidden', scrollSnapType: 'x mandatory', WebkitOverflowScrolling: 'touch' }}>
+            {slides.map((s, k) => (
+              <div key={k} style={{ flex: '0 0 100%', width: '100%', height: '100%', scrollSnapAlign: 'center', scrollSnapStop: 'always', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {s.video ? (
+                  vid ? (
+                    <iframe src={ytEmbed(vid, { controls: 1, origin })} referrerPolicy="strict-origin-when-cross-origin" style={{ width: 'min(100vw, 56.25vh)', height: 'min(100vh, 177.78vw)', border: 0 }} allow="autoplay; encrypted-media" allowFullScreen title={im.titulo} />
+                  ) : (
+                    <video src={im.video_file_url} controls autoPlay muted loop playsInline style={{ maxWidth: '100vw', maxHeight: '100vh' }} />
+                  )
+                ) : (
+                  <img src={s.bg} alt={`${im.titulo} — foto ${k}`} loading={Math.abs(k - idx) <= 1 ? 'eager' : 'lazy'} decoding="async"
+                    style={{ maxWidth: '100vw', maxHeight: '100vh', objectFit: 'contain' }} />
+                )}
+              </div>
+            ))}
+          </div>
+
+          <button onClick={() => setFull(false)} aria-label="Fechar"
+            style={{ position: 'fixed', top: 16, right: 16, width: 44, height: 44, borderRadius: 999, background: 'rgba(243,237,227,.14)', color: '#F3EDE3', border: 0, fontSize: 22, cursor: 'pointer', zIndex: 102 }}>×</button>
+
+          <div style={{ position: 'fixed', top: 22, left: 20, fontSize: 13, color: 'rgba(243,237,227,.7)', letterSpacing: '.04em', zIndex: 102 }}>{idx + 1} / {slides.length}</div>
+
+          {idx > 0 && <button onClick={() => go(idx - 1)} style={fullNav('left')}>‹</button>}
+          {idx < slides.length - 1 && <button onClick={() => go(idx + 1)} style={fullNav('right')}>›</button>}
+
+          <div style={{ position: 'fixed', bottom: 18, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 8, padding: '8px 10px', background: 'rgba(31,24,18,.6)', borderRadius: 12, maxWidth: 'calc(100vw - 40px)', overflowX: 'auto', zIndex: 102 }}>
+            {slides.map((s, k) => (
+              <button key={k} onClick={() => go(k)} style={{ width: 44, height: 44, flex: 'none', borderRadius: 8, border: k === idx ? '2px solid var(--accent)' : '2px solid transparent', padding: 0, overflow: 'hidden', background: s.video ? '#2A2117' : `url("${s.thumb || s.bg}") center/cover`, color: '#F3EDE3', fontSize: 14, cursor: 'pointer' }}>{s.video ? '▶' : ''}</button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+const fullNav = (side) => ({
+  position: 'fixed', [side]: 14, top: '50%', transform: 'translateY(-50%)',
+  width: 52, height: 52, borderRadius: 999, background: 'rgba(243,237,227,.14)', color: '#F3EDE3',
+  border: 0, fontSize: 26, cursor: 'pointer', zIndex: 101
+});
 
 const navBtn = (side) => ({
   position: 'absolute', [side]: 10, top: '50%', transform: 'translateY(-50%)',

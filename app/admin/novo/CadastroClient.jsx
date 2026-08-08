@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '../../../lib/supabase-browser';
 import { uploadToR2 } from '../../../lib/r2-upload';
@@ -48,11 +48,11 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
     banheiros: imovel.banheiros || 0, vagas: imovel.vagas || 0, area: imovel.area_m2 || '', andar: imovel.andar || '',
     preco: imovel.preco_cents ? String(imovel.preco_cents / 100) : '', condominio: '', iptu: '',
     video: imovel.youtube_url || '', videoUrl: imovel.video_file_url || '', videoMode: imovel.video_file_url ? 'arquivo' : 'link', descricao: imovel.descricao || '',
-    parceiro_id: imovel.parceiro_id || '', parceiro_pct: imovel.parceiro_pct || ''
+    parceiro_id: imovel.parceiro_id || '', parceiro_pct: imovel.parceiro_pct || '', codigo: imovel.codigo || ''
   } : {
     finalidade: 'aluguel', categoria: 'Apartamento', titulo: '', bairro: '', endereco: '', referencia: '',
     mobilia: 'sem', quartos: 3, suites: 1, banheiros: 2, vagas: 2, area: '', andar: '', preco: '', condominio: '', iptu: '',
-    video: '', videoUrl: '', videoMode: 'link', descricao: '', parceiro_id: '', parceiro_pct: ''
+    video: '', videoUrl: '', videoMode: 'link', descricao: '', parceiro_id: '', parceiro_pct: '', codigo: ''
   });
 
   const set = (patch) => setForm(f => ({ ...f, ...patch }));
@@ -65,6 +65,10 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
   const isAluguel = form.finalidade === 'aluguel';
   const seoTitle = tituloSeo({ categoria: form.categoria, quartos: form.quartos, suites: form.suites, mobilia: form.mobilia, finalidade: form.finalidade, bairro: form.bairro });
   const vid = ytId(form.video);
+  const codigoSugerido = useMemo(() => {
+    const pre = form.finalidade === 'venda' ? 'JDV' : 'JDA';
+    return `${pre}-${Math.floor(1000 + Math.random() * 9000)}`;
+  }, [form.finalidade]);
 
   function addFotos(e) {
     const files = Array.from(e.target.files || []);
@@ -73,7 +77,7 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
   }
 
   // reduz a foto (mantém boa qualidade) antes de subir — carrega muito mais rápido
-  function compressImage(file, maxDim = 1920, quality = 0.85) {
+  function compressImage(file, maxDim = 1600, quality = 0.8) {
     return new Promise((resolve) => {
       if (!file.type || !file.type.startsWith('image/')) return resolve(file);
       const url = URL.createObjectURL(file);
@@ -109,6 +113,7 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
         video_file_url: (form.videoMode === 'arquivo' && form.videoUrl) ? form.videoUrl.trim() : (form.videoMode === 'arquivo' ? (imovel?.video_file_url || null) : null),
         capa_url: (form.videoMode === 'link' && vid) ? `https://i.ytimg.com/vi/${vid}/hqdefault.jpg` : (imovel?.capa_url || null),
         descricao: form.descricao || null,
+        codigo: (form.codigo || '').trim().toUpperCase() || codigoSugerido,
         parceiro_id: form.parceiro_id || null, parceiro_pct: form.parceiro_id ? (Number(form.parceiro_pct) || null) : null,
         status: 'ativo'
       };
@@ -144,16 +149,25 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
         setVideoPct(0);
       }
 
-      // upload das novas fotos para o bucket 'imoveis-fotos' (comprimidas)
+      // upload das novas fotos — miniatura + grande, direto pro R2 (rápido); senão Supabase
       let primeiraFotoUrl = null;
       for (let i = 0; i < novasFotos.length; i++) {
         const blob = await compressImage(novasFotos[i].file);
-        const path = `${imovelId}/${Date.now()}-${i}.jpg`;
-        const { error: upErr } = await supabase.storage.from('imoveis-fotos').upload(path, blob, { upsert: true, contentType: 'image/jpeg', cacheControl: '31536000' });
-        if (upErr) continue;
-        const { data: pub } = supabase.storage.from('imoveis-fotos').getPublicUrl(path);
-        if (!primeiraFotoUrl) primeiraFotoUrl = pub.publicUrl;
-        await supabase.from('imovel_fotos').insert({ imovel_id: imovelId, path, url: pub.publicUrl, ordem: i });
+        const thumbBlob = await compressImage(novasFotos[i].file, 520, 0.62);
+        let url = null, thumbUrl = null, path = null;
+        try {
+          url = await uploadToR2(new File([blob], `foto-${i}.jpg`, { type: 'image/jpeg' }), null, 'fotos');
+          thumbUrl = await uploadToR2(new File([thumbBlob], `thumb-${i}.jpg`, { type: 'image/jpeg' }), null, 'fotos');
+        } catch (e) { url = null; }
+        if (!url) {
+          path = `${imovelId}/${Date.now()}-${i}.jpg`;
+          const { error: upErr } = await supabase.storage.from('imoveis-fotos').upload(path, blob, { upsert: true, contentType: 'image/jpeg', cacheControl: '31536000' });
+          if (upErr) continue;
+          const { data: pub } = supabase.storage.from('imoveis-fotos').getPublicUrl(path);
+          url = pub.publicUrl;
+        }
+        if (!primeiraFotoUrl) primeiraFotoUrl = thumbUrl || url;
+        await supabase.from('imovel_fotos').insert({ imovel_id: imovelId, path, url, thumb_url: thumbUrl, ordem: i });
       }
       // se não é YouTube e ainda não tem capa, usa a 1ª foto como capa/poster
       if (form.videoMode === 'arquivo' && primeiraFotoUrl) {
@@ -385,6 +399,10 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
                 </div>
                 <input value={form.titulo} onChange={e => set({ titulo: e.target.value })} placeholder="Ou escreva o seu…" style={inp} />
                 <Hint>A sugestão é montada a partir das infos que você preencheu. Pode usá-la ou ajustar.</Hint>
+              </Field>
+              <Field label="Código do imóvel">
+                <input value={form.codigo} onChange={e => set({ codigo: e.target.value.toUpperCase() })} placeholder={codigoSugerido} style={inp} />
+                <Hint>Se deixar em branco, usamos <strong style={{ color: 'var(--accent)' }}>{codigoSugerido}</strong>. Aparece no anúncio e na mensagem do WhatsApp — facilita achar o imóvel internamente.</Hint>
               </Field>
               <div style={{ fontSize: 13, color: 'var(--taupe)' }}>É assim que o anúncio aparece no site:</div>
               <div style={{ background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 14, overflow: 'hidden' }}>

@@ -13,9 +13,10 @@ export async function POST(req) {
     return NextResponse.json({ error: 'R2 não configurado' }, { status: 501 });
   }
   try {
-    const { filename } = await req.json();
+    const { filename, folder } = await req.json();
     const safe = (filename || 'video.mp4').replace(/[^a-zA-Z0-9._-]/g, '_');
-    const key = `videos/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${safe}`;
+    const dir = (folder || 'videos').replace(/[^a-z0-9-]/gi, '');
+    const key = `${dir}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${safe}`;
 
     const client = new AwsClient({
       accessKeyId: R2.accessKeyId,

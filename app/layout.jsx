@@ -1,6 +1,6 @@
 import './globals.css';
 import Script from 'next/script';
-import { SITE_URL, GA_ID, CLARITY_ID } from '../lib/config';
+import { SITE_URL, GA_ID, CLARITY_ID, MEDIA_ORIGIN } from '../lib/config';
 
 const SITE = SITE_URL;
 
@@ -28,6 +28,8 @@ export default function RootLayout({ children }) {
     <html lang="pt-BR">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
+        {MEDIA_ORIGIN && <link rel="preconnect" href={MEDIA_ORIGIN} crossOrigin="anonymous" />}
+        {MEDIA_ORIGIN && <link rel="dns-prefetch" href={MEDIA_ORIGIN} />}
         <link
           href="https://fonts.googleapis.com/css2?family=Marcellus&family=Karla:ital,wght@0,300;0,400;0,600;0,700;1,400&display=swap"
           rel="stylesheet"

@@ -166,7 +166,7 @@ export default function PortalClient({ imoveis, heroVideo, heroVideoFile }) {
         )}
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(210px,1fr))', gap: 20 }}>
-          {lista.map(im => <Card key={im.id} im={im} active={active === im.id} setActive={setActive} origin={origin} />)}
+          {lista.map((im, i) => <Card key={im.id} im={im} active={active === im.id} setActive={setActive} origin={origin} priority={i < 4} />)}
         </div>
         {lista.length === 0 && <div style={{ textAlign: 'center', padding: 48, color: 'var(--muted)' }}>Nenhum imóvel encontrado com esses filtros.</div>}
       </section>
@@ -195,10 +195,11 @@ export default function PortalClient({ imoveis, heroVideo, heroVideoFile }) {
   );
 }
 
-function Card({ im, active, setActive, origin }) {
+function Card({ im, active, setActive, origin, priority }) {
   const vid = ytId(im.youtube_url);
   const nativo = !vid && im.video_file_url;
-  const foto0 = (im.imovel_fotos || []).slice().sort((a, b) => (a.ordem || 0) - (b.ordem || 0))[0]?.url;
+  const f0 = (im.imovel_fotos || []).slice().sort((a, b) => (a.ordem || 0) - (b.ordem || 0))[0];
+  const foto0 = f0?.thumb_url || f0?.url;
   const capa = vid ? ytThumb(vid) : (im.capa_url || foto0 || '');
   const ref = useRef(null);
   const [visible, setVisible] = useState(false);
@@ -214,7 +215,7 @@ function Card({ im, active, setActive, origin }) {
       onMouseEnter={() => setActive(im.id)} onMouseLeave={() => setActive(null)}>
       <div style={{ position: 'relative', aspectRatio: '9/16', background: 'linear-gradient(150deg,#6B5A44,#463928)', overflow: 'hidden' }}>
         {capa && (
-          <img src={capa} alt={im.titulo || im.categoria} loading="lazy" decoding="async"
+          <img src={capa} alt={im.titulo || im.categoria} loading={priority ? 'eager' : 'lazy'} fetchPriority={priority ? 'high' : 'auto'} decoding="async"
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
         )}
         {vid && active && (
@@ -241,6 +242,7 @@ function Card({ im, active, setActive, origin }) {
           {im.vagas ? <span>{im.vagas} vagas</span> : null}
           {im.area_m2 ? <span>{im.area_m2} m²</span> : null}
           {im.mobilia ? <span>{MOBILIA_LABELS[im.mobilia]}</span> : null}
+          {im.codigo ? <span style={{ marginLeft: 'auto', color: 'var(--muted)', fontSize: 11 }}>{im.codigo}</span> : null}
         </div>
       </div>
     </Link>

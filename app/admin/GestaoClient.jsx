@@ -3,7 +3,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '../../lib/supabase-browser';
-import { uploadToR2 } from '../../lib/r2-upload';
+import { uploadToR2, deleteFromR2 } from '../../lib/r2-upload';
 import { formatPreco, ytId, ytThumb } from '../../lib/format';
 
 export default function GestaoClient({ initialImoveis, initialParceiros, initialHero, initialHeroFile }) {
@@ -14,6 +14,7 @@ export default function GestaoClient({ initialImoveis, initialParceiros, initial
   const [busca, setBusca] = useState('');
   const [aba, setAba] = useState('todos');
   const [confirm, setConfirm] = useState(null);
+  const [excluindo, setExcluindo] = useState(null);
   const [showParceiros, setShowParceiros] = useState(false);
   const [pNome, setPNome] = useState(''); const [pPct, setPPct] = useState('');
   const [hero, setHero] = useState(initialHero || '');
@@ -63,9 +64,28 @@ export default function GestaoClient({ initialImoveis, initialParceiros, initial
   }
   async function excluir(im) {
     if (confirm !== im.id) { setConfirm(im.id); return; }
-    await supabase.from('imoveis').delete().eq('id', im.id);
-    setImoveis(l => l.filter(x => x.id !== im.id));
+    setExcluindo(im.id);
+    try {
+      // 1) fotos no Storage do Supabase
+      const { data: fotos } = await supabase.from('imovel_fotos').select('path, url').eq('imovel_id', im.id);
+      const paths = (fotos || []).map(f => f.path).filter(Boolean);
+      if (paths.length) await supabase.storage.from('imoveis-fotos').remove(paths);
+      // 1b) fotos que estão no Cloudflare R2
+      for (const f of (fotos || [])) { if (f.url && !f.path) await deleteFromR2(f.url); }
+      // 2) vídeo(s) do imóvel no Storage do Supabase (se houver)
+      const { data: vids } = await supabase.storage.from('imoveis-videos').list(String(im.id));
+      if (vids && vids.length) await supabase.storage.from('imoveis-videos').remove(vids.map(v => `${im.id}/${v.name}`));
+      // 3) vídeo no Cloudflare R2 (se a URL for do R2)
+      if (im.video_file_url) await deleteFromR2(im.video_file_url);
+      // 4) registro no banco (cascade apaga as linhas de imovel_fotos)
+      await supabase.from('imoveis').delete().eq('id', im.id);
+      setImoveis(l => l.filter(x => x.id !== im.id));
+    } catch (e) {
+      alert('Não consegui excluir tudo. Tente de novo.');
+    }
     setConfirm(null);
+    setExcluindo(null);
+  }
   }
   async function addParceiro() {
     if (!pNome.trim()) return;
@@ -91,7 +111,7 @@ export default function GestaoClient({ initialImoveis, initialParceiros, initial
   const q = busca.trim().toLowerCase();
   const lista = imoveis
     .filter(i => aba === 'todos' || (aba === 'ativos' ? i.status === 'ativo' : i.status === 'pausado'))
-    .filter(i => !q || i.titulo.toLowerCase().includes(q) || (i.bairro || '').toLowerCase().includes(q));
+    .filter(i => !q || i.titulo.toLowerCase().includes(q) || (i.bairro || '').toLowerCase().includes(q) || (i.codigo || '').toLowerCase().includes(q));
   const ativos = imoveis.filter(i => i.status === 'ativo').length;
   const pausados = imoveis.filter(i => i.status === 'pausado').length;
 
@@ -177,7 +197,7 @@ export default function GestaoClient({ initialImoveis, initialParceiros, initial
             </div>
           )}
 
-          <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar por título ou bairro…" style={{ width: '100%', background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 12, padding: '14px 16px', fontSize: 16, color: 'var(--cream)' }} />
+          <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar por código, título ou bairro…" style={{ width: '100%', background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 12, padding: '14px 16px', fontSize: 16, color: 'var(--cream)' }} />
 
           <div style={{ display: 'flex', gap: 8 }}>
             {[['todos', `Todos (${imoveis.length})`], ['ativos', `Ativos (${ativos})`], ['pausados', `Pausados (${pausados})`]].map(([k, label]) => (
@@ -203,6 +223,7 @@ export default function GestaoClient({ initialImoveis, initialParceiros, initial
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--cream-2)' }}>{im.titulo}</span>
+                      {im.codigo && <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', padding: '3px 8px', borderRadius: 5, background: 'var(--bg)', border: '1px solid var(--line)', color: 'var(--taupe)' }}>{im.codigo}</span>}
                       <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 5, background: pausado ? 'rgba(243,237,227,.1)' : 'rgba(168,192,143,.15)', color: pausado ? 'var(--taupe)' : 'var(--green)' }}>{pausado ? 'PAUSADO' : 'NO AR'}</span>
                       {im.parceiros?.nome && <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 5, background: 'rgba(232,168,124,.12)', border: '1px solid rgba(232,168,124,.3)', color: 'var(--accent)' }}>{im.parceiros.nome}{im.parceiro_pct ? ` · ${im.parceiro_pct}%` : ''}</span>}
                     </div>
@@ -211,7 +232,7 @@ export default function GestaoClient({ initialImoveis, initialParceiros, initial
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     <Link href={`/admin/novo?id=${im.id}`} style={{ padding: '9px 14px', borderRadius: 8, background: 'rgba(232,168,124,.12)', border: '1px solid rgba(232,168,124,.35)', color: 'var(--accent)', fontSize: 12.5, fontWeight: 700 }}>Editar</Link>
                     <button onClick={() => togglePausa(im)} style={{ padding: '9px 14px', borderRadius: 8, border: '1px solid rgba(243,237,227,.18)', background: 'transparent', color: 'var(--sand)', fontSize: 12.5, fontWeight: 600 }}>{pausado ? 'Reativar' : 'Pausar'}</button>
-                    <button onClick={() => excluir(im)} style={{ padding: '9px 14px', borderRadius: 8, border: '1px solid rgba(200,90,70,.3)', background: 'transparent', color: '#c88a7a', fontSize: 12.5, fontWeight: 600 }}>{confirm === im.id ? 'Confirmar exclusão?' : 'Excluir'}</button>
+                    <button onClick={() => excluir(im)} disabled={excluindo === im.id} style={{ padding: '9px 14px', borderRadius: 8, border: '1px solid rgba(200,90,70,.3)', background: confirm === im.id ? 'rgba(200,90,70,.15)' : 'transparent', color: '#c88a7a', fontSize: 12.5, fontWeight: 600 }}>{excluindo === im.id ? 'Excluindo…' : confirm === im.id ? 'Confirmar exclusão?' : 'Excluir'}</button>
                   </div>
                 </div>
               </div>

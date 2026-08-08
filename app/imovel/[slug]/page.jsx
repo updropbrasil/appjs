@@ -9,7 +9,7 @@ async function getImovel(slug) {
   const supabase = createClient();
   const { data } = await supabase.from('imoveis').select('*').eq('slug', slug).eq('status', 'ativo').maybeSingle();
   if (!data) return null;
-  const { data: fotos } = await supabase.from('imovel_fotos').select('url, ordem').eq('imovel_id', data.id).order('ordem');
+  const { data: fotos } = await supabase.from('imovel_fotos').select('url, thumb_url, ordem').eq('imovel_id', data.id).order('ordem');
   return { ...data, fotos: fotos || [] };
 }
 

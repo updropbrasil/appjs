@@ -4,9 +4,17 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '../../../lib/supabase-browser';
 import { uploadToR2 } from '../../../lib/r2-upload';
 import { ytId, ytThumb, parsePreco, formatPreco, slugify, tituloSeo, MOBILIA_LABELS, maskThousands, onlyDigits } from '../../../lib/format';
+import { qualidadeAnuncio } from '../../../lib/zap-feed';
 
 const CATEGORIAS = ['Apartamento', 'Casa', 'Cobertura', 'Flat / Studio', 'Comercial'];
 const BAIRROS = ['Cabo Branco', 'Manaíra', 'Tambaú', 'Bessa', 'Altiplano', 'Intermares'];
+const FEATURE_OPTS = [
+  'Piscina', 'Academia', 'Salão de festas', 'Churrasqueira', 'Varanda gourmet', 'Varanda',
+  'Elevador', 'Portaria 24h', 'Segurança 24h', 'Playground', 'Salão de jogos', 'Quadra poliesportiva',
+  'Sauna', 'Espaço pet', 'Coworking', 'Ar condicionado', 'Vista para o mar', 'Condomínio fechado',
+  'Closet', 'Cozinha americana', 'Lavabo', 'Área de serviço', 'Permite animais', 'Portão eletrônico',
+  'Interfone', 'Energia solar', 'Piscina privativa', 'Escritório',
+];
 const MOBILIAS = [['mobiliado', 'Mobiliado'], ['semi', 'Semimobiliado'], ['sem', 'Sem mobília'], ['planejados', 'Com planejados']];
 const STEPS = ['Tipo', 'Localização', 'Características', 'Valores', 'Vídeo e fotos', 'Revisão'];
 
@@ -48,11 +56,14 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
     banheiros: imovel.banheiros || 0, vagas: imovel.vagas || 0, area: imovel.area_m2 || '', andar: imovel.andar || '',
     preco: imovel.preco_cents ? String(imovel.preco_cents / 100) : '', condominio: '', iptu: '',
     video: imovel.youtube_url || '', videoUrl: imovel.video_file_url || '', videoMode: imovel.video_file_url ? 'arquivo' : 'link', descricao: imovel.descricao || '',
-    parceiro_id: imovel.parceiro_id || '', parceiro_pct: imovel.parceiro_pct || '', codigo: imovel.codigo || '', cep: imovel.cep || ''
+    parceiro_id: imovel.parceiro_id || '', parceiro_pct: imovel.parceiro_pct || '', codigo: imovel.codigo || '', cep: imovel.cep || '',
+    numero: imovel.numero || '', complemento: imovel.complemento || '', ano: imovel.ano_construcao || '',
+    features: Array.isArray(imovel.features) ? imovel.features : []
   } : {
     finalidade: 'aluguel', categoria: 'Apartamento', titulo: '', bairro: '', endereco: '', referencia: '',
     mobilia: 'sem', quartos: 3, suites: 1, banheiros: 2, vagas: 2, area: '', andar: '', preco: '', condominio: '', iptu: '',
-    video: '', videoUrl: '', videoMode: 'link', descricao: '', parceiro_id: '', parceiro_pct: '', codigo: '', cep: ''
+    video: '', videoUrl: '', videoMode: 'link', descricao: '', parceiro_id: '', parceiro_pct: '', codigo: '', cep: '',
+    numero: '', complemento: '', ano: '', features: []
   });
 
   const set = (patch) => setForm(f => ({ ...f, ...patch }));
@@ -69,6 +80,15 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
     const pre = form.finalidade === 'venda' ? 'JDV' : 'JDA';
     return `${pre}-${Math.floor(1000 + Math.random() * 9000)}`;
   }, [form.finalidade]);
+
+  // prévia da força do anúncio nos portais (mesma conta da página Portais)
+  const qual = qualidadeAnuncio({
+    descricao: form.descricao,
+    cep: form.cep, endereco: form.endereco, numero: form.numero,
+    area_m2: form.area, youtube_url: form.videoMode === 'link' ? form.video : '',
+    features: form.features, ano_construcao: form.ano,
+    imovel_fotos: [...(fotosIniciais || []).map(f => ({ url: f.url })), ...novasFotos.map((_, i) => ({ url: `https://x/${i}.jpg` }))],
+  });
 
   function addFotos(e) {
     const files = Array.from(e.target.files || []);
@@ -115,6 +135,10 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
         descricao: form.descricao || null,
         codigo: (form.codigo || '').trim().toUpperCase() || codigoSugerido,
         cep: (form.cep || '').trim() || null,
+        numero: (form.numero || '').trim() || null,
+        complemento: (form.complemento || '').trim() || null,
+        ano_construcao: form.ano ? Number(String(form.ano).replace(/\D/g, '')) || null : null,
+        features: Array.isArray(form.features) ? form.features : [],
         parceiro_id: form.parceiro_id || null, parceiro_pct: form.parceiro_id ? (Number(form.parceiro_pct) || null) : null,
         status: 'ativo'
       };
@@ -242,6 +266,17 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
                 <input value={form.cep} onChange={e => set({ cep: maskCep(e.target.value) })} placeholder="58000-000" inputMode="numeric" style={inp} />
                 <Hint>Obrigatório para publicar no Zap / VivaReal / OLX. Não aparece no nosso site.</Hint>
               </Field>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <Field label="Número">
+                  <input value={form.numero} onChange={e => set({ numero: e.target.value })} placeholder="Ex.: 539" style={inp} />
+                </Field>
+                <Field label="Complemento">
+                  <input value={form.complemento} onChange={e => set({ complemento: e.target.value })} placeholder="Ex.: apto 1201" style={inp} />
+                </Field>
+              </div>
+              <div style={{ fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.6, background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 10, padding: '11px 13px' }}>
+                🔒 Rua, número e CEP <strong style={{ color: 'var(--sand)' }}>não aparecem</strong> nem no nosso site nem no portal — servem para o imóvel aparecer na busca por mapa e subir no ranqueamento. Quem pesquisa vê só o bairro.
+              </div>
               <Field label="Endereço completo — 🔒 NÃO APARECE NO SITE">
                 <input value={form.endereco} onChange={e => set({ endereco: e.target.value })} placeholder="Rua, número, complemento…" style={inp} />
                 <Hint>Só para seu controle interno — o cliente recebe o endereço no WhatsApp.</Hint>
@@ -281,6 +316,22 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
                   <input value={form.andar} onChange={e => set({ andar: e.target.value })} placeholder="Ou escreva… ex.: 12º andar" style={inp} />
                 </Field>
               )}
+              <Field label="Ano de construção">
+                <input value={form.ano} onChange={e => set({ ano: e.target.value.replace(/\D/g, '').slice(0, 4) })} placeholder="Ex.: 2019" inputMode="numeric" style={inp} />
+                <Hint>Opcional, mas conta como anúncio completo no portal.</Hint>
+              </Field>
+              <Field label={`Características (${(form.features || []).length})`}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {FEATURE_OPTS.map(f => {
+                    const on = (form.features || []).includes(f);
+                    return (
+                      <button key={f} onClick={() => set({ features: on ? form.features.filter(x => x !== f) : [...(form.features || []), f] })}
+                        style={{ padding: '9px 14px', borderRadius: 999, fontSize: 13, fontWeight: on ? 700 : 400, border: `1px solid ${on ? 'var(--accent)' : 'rgba(243,237,227,.2)'}`, background: on ? 'rgba(232,168,124,.12)' : 'transparent', color: on ? 'var(--accent)' : 'var(--sand)' }}>{f}</button>
+                    );
+                  })}
+                </div>
+                <Hint>Marque 4 ou mais — o portal usa isso nos filtros de busca, é o que traz cliente qualificado.</Hint>
+              </Field>
             </>
           )}
 
@@ -409,6 +460,28 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
                 <input value={form.codigo} onChange={e => set({ codigo: e.target.value.toUpperCase() })} placeholder={codigoSugerido} style={inp} />
                 <Hint>Se deixar em branco, usamos <strong style={{ color: 'var(--accent)' }}>{codigoSugerido}</strong>. Aparece no anúncio e na mensagem do WhatsApp — facilita achar o imóvel internamente.</Hint>
               </Field>
+
+              <div style={{ background: 'var(--bg-2)', border: `1px solid ${qual.score >= 80 ? 'rgba(168,192,143,.35)' : 'rgba(232,168,124,.3)'}`, borderRadius: 14, padding: '15px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                  <strong style={{ fontSize: 13.5, color: 'var(--cream-2)' }}>Força do anúncio nos portais</strong>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: qual.score >= 80 ? 'var(--green)' : 'var(--accent)' }}>{qual.score}%</span>
+                </div>
+                <div style={{ height: 7, borderRadius: 999, background: 'rgba(243,237,227,.1)', overflow: 'hidden' }}>
+                  <div style={{ width: `${qual.score}%`, height: '100%', background: qual.score >= 80 ? 'var(--green)' : qual.score >= 55 ? 'var(--accent)' : '#c88a7a' }}></div>
+                </div>
+                {qual.faltando.length === 0 ? (
+                  <div style={{ fontSize: 12.5, color: 'var(--green)' }}>✓ Anúncio completo — vai bem posicionado.</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    {qual.faltando.map(it => (
+                      <div key={it.label} style={{ display: 'flex', gap: 8, fontSize: 12, color: 'var(--sand)' }}>
+                        <span style={{ color: '#c8a87a', flex: 'none' }}>○</span>
+                        <span><strong>{it.label}</strong> <span style={{ color: 'var(--muted)' }}>— {it.dica}</span></span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
               <div style={{ fontSize: 13, color: 'var(--taupe)' }}>É assim que o anúncio aparece no site:</div>
               <div style={{ background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 14, overflow: 'hidden' }}>
                 <div style={{ aspectRatio: '16/10', background: vid ? `url("${ytThumb(vid)}") center/cover` : (novasFotos[0] ? `url("${novasFotos[0].preview}") center/cover` : '#463928'), position: 'relative' }}>

@@ -24,7 +24,7 @@ export default function LoginPage() {
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-3)', padding: 20 }}>
       <form onSubmit={entrar} style={{ width: '100%', maxWidth: 380, background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 18, padding: '32px 28px', display: 'flex', flexDirection: 'column', gap: 20 }}>
         <div>
-          <div className="serif" style={{ fontSize: 20, color: 'var(--cream-2)', letterSpacing: '.04em' }}>JASON DIAS</div>
+          <img src="/logo-jason-dias.jpg" alt="Jason Dias Imóveis" style={{ height: 30, width: 'auto', mixBlendMode: 'screen' }} />
           <div style={{ fontSize: 13, color: 'var(--taupe)', marginTop: 6 }}>Área do corretor — acesso restrito</div>
         </div>
         <label style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

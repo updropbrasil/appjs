@@ -54,12 +54,14 @@ export default function DetailClient({ im, precoFmt }) {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      <header className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0', borderBottom: '1px solid var(--line)' }}>
-        <Link href="/" className="serif" style={{ fontSize: 20, letterSpacing: '.04em', color: 'var(--cream-2)' }}>JASON DIAS</Link>
-        <a href={wa} target="_blank" rel="noopener" style={{ background: 'var(--accent)', color: '#2A2117', padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 700 }}>WhatsApp</a>
+      <header className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, paddingTop: 14, paddingBottom: 14, borderBottom: '1px solid var(--line)' }}>
+        <Link href="/" style={{ display: 'flex', alignItems: 'center' }} aria-label="Jason Dias Imóveis">
+          <img src="/logo-jason-dias.jpg" alt="Jason Dias Imóveis" style={{ height: 34, width: 'auto', mixBlendMode: 'screen' }} />
+        </Link>
+        <a href={wa} target="_blank" rel="noopener" style={{ background: 'var(--accent)', color: '#2A2117', padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap' }}>WhatsApp</a>
       </header>
 
-      <div className="container" style={{ padding: '20px 48px 90px' }}>
+      <div className="container" style={{ paddingTop: 20, paddingBottom: 90 }}>
         <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13.5, color: 'var(--taupe)', padding: '10px 0' }}>← Voltar aos imóveis</Link>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 48, alignItems: 'flex-start' }}>

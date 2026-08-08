@@ -58,9 +58,8 @@ export default function PortalClient({ imoveis, heroVideo, heroVideoFile }) {
       {/* HEADER */}
       <header style={{ position: 'sticky', top: 0, zIndex: 40, background: 'rgba(31,24,18,.92)', backdropFilter: 'blur(10px)', borderBottom: '1px solid var(--line)' }}>
         <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: isMobile ? '14px 20px' : '16px 56px' }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 9 }}>
-            <span className="serif" style={{ fontSize: 20, letterSpacing: '.04em', color: 'var(--cream-2)' }}>JASON DIAS</span>
-            <span style={{ fontSize: 10, letterSpacing: '.22em', color: 'var(--taupe)' }}>IMÓVEIS</span>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <img src="/logo-jason-dias.jpg" alt="Jason Dias Imóveis" style={{ height: isMobile ? 30 : 36, width: 'auto', mixBlendMode: 'screen' }} />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 12 : 28 }}>
             {!isMobile && (
@@ -187,7 +186,10 @@ export default function PortalClient({ imoveis, heroVideo, heroVideoFile }) {
       </section>
 
       <footer className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', padding: isMobile ? '24px 20px 32px' : '24px 56px', color: 'var(--muted)', fontSize: 12.5 }}>
-        <span className="serif" style={{ color: 'var(--sand)', fontSize: 14 }}>JASON DIAS IMÓVEIS <span style={{ fontFamily: 'Karla, sans-serif', fontSize: 11, color: 'var(--muted)', letterSpacing: '.06em' }}>· CRECI 8085</span></span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <img src="/logo-jason-dias.jpg" alt="Jason Dias Imóveis" style={{ height: 24, width: 'auto', mixBlendMode: 'screen' }} />
+          <span style={{ fontSize: 11, color: 'var(--muted)', letterSpacing: '.06em' }}>CRECI 8085</span>
+        </span>
         <span>João Pessoa · PB — Aluguel e venda de médio-alto padrão</span>
         <Link href="/admin/login" style={{ fontSize: 11.5, color: '#6b5f4e' }}>Área do corretor</Link>
       </footer>

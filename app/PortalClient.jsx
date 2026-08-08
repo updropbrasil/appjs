@@ -72,12 +72,16 @@ export default function PortalClient({ imoveis, heroVideo, heroVideoFile }) {
             <a href={wa} target="_blank" rel="noopener" style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--accent)', color: '#2A2117', padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 700 }}>
               WhatsApp
             </a>
+            <Link href="/admin/login" title="Área do corretor" aria-label="Área do corretor"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, borderRadius: 999, border: '1px solid rgba(243,237,227,.14)', color: '#7a6c59', flex: 'none' }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>
+            </Link>
           </div>
         </div>
       </header>
 
       {/* HERO */}
-      <section style={{ position: 'relative', minHeight: 'min(82vh, 660px)', background: heroYt ? `#2A2117 url("https://i.ytimg.com/vi/${heroYt}/hqdefault.jpg") center/cover` : 'linear-gradient(200deg,#4A3B2A,#2A2117 60%,#1F1812)', overflow: 'hidden', display: 'flex' }}>
+      <section style={{ position: 'relative', minHeight: isMobile ? 'auto' : 'min(94vh, 800px)', background: heroYt ? `#2A2117 url("https://i.ytimg.com/vi/${heroYt}/hqdefault.jpg") center/cover` : 'linear-gradient(200deg,#4A3B2A,#2A2117 60%,#1F1812)', overflow: 'hidden', display: 'flex' }}>
         {heroVideoFile && (
           <video src={heroVideoFile} autoPlay muted loop playsInline preload="auto"
             style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', minWidth: '100%', minHeight: '100%', objectFit: 'cover', border: 0 }} />
@@ -95,7 +99,7 @@ export default function PortalClient({ imoveis, heroVideo, heroVideoFile }) {
         )}
         {!heroPlaying && (
           <div className="container" style={{ position: 'relative', zIndex: 2, alignSelf: 'flex-end', width: '100%', padding: isMobile ? '0 20px 40px' : '0 56px 56px' }}>
-            <div style={{ maxWidth: 620, paddingTop: 120 }}>
+            <div style={{ maxWidth: 620, paddingTop: isMobile ? 70 : 90 }}>
               <div style={{ display: 'inline-flex', gap: 8, fontSize: 10.5, letterSpacing: '.2em', color: 'var(--accent)', border: '1px solid rgba(232,168,124,.4)', padding: '6px 12px', borderRadius: 999, marginBottom: 18 }}>JOÃO PESSOA · PB</div>
               <h1 style={{ fontSize: 'clamp(26px, 4vw, 48px)', lineHeight: 1.14, color: 'var(--cream-2)', margin: 0, textShadow: '0 2px 24px rgba(0,0,0,.45)' }}>Morar bem em João Pessoa começa com um bom tour</h1>
               <p style={{ fontSize: 'clamp(14px, 1.6vw, 16px)', color: 'var(--cream)', marginTop: 14, maxWidth: 460, lineHeight: 1.55, textShadow: '0 1px 12px rgba(0,0,0,.5)' }}>Todos os nossos imóveis têm tour guiado em vídeo. Conheça por dentro antes de agendar a visita.</p>
@@ -103,6 +107,56 @@ export default function PortalClient({ imoveis, heroVideo, heroVideoFile }) {
                 <button onClick={() => goToList('aluguel')} style={{ background: 'var(--accent)', color: '#2A2117', padding: '13px 24px', borderRadius: 8, fontSize: 14, fontWeight: 700, border: 0, cursor: 'pointer' }}>Ver imóveis para alugar</button>
                 <button onClick={() => goToList('venda')} style={{ border: '1px solid rgba(243,237,227,.5)', background: 'rgba(31,24,18,.25)', color: 'var(--cream)', padding: '13px 24px', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>À venda</button>
                 {!heroVideoFile && heroYt && <button onClick={() => setHeroPlaying(true)} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'transparent', border: 0, color: 'var(--cream)', fontSize: 13, cursor: 'pointer', textShadow: '0 1px 8px rgba(0,0,0,.6)' }}><span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: 999, background: 'rgba(31,24,18,.5)', border: '1px solid rgba(243,237,227,.4)' }}>▶</span> Assistir com som</button>}
+              </div>
+            </div>
+
+            {/* BUSCA — sempre visível sobre o vídeo */}
+            <div style={{ marginTop: 26, background: 'rgba(31,24,18,.78)', backdropFilter: 'blur(10px)', border: '1px solid rgba(243,237,227,.14)', borderRadius: 16, padding: isMobile ? 14 : '18px 20px', maxWidth: 940, display: 'flex', flexDirection: 'column', gap: 12, boxShadow: '0 18px 50px rgba(0,0,0,.35)' }}>
+              <div style={{ display: 'flex', gap: isMobile ? 10 : 14, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                <div style={{ flex: '1 1 190px', minWidth: 0 }}>
+                  <div style={buscaLabel}>QUERO</div>
+                  <div style={{ display: 'flex', background: 'var(--bg-2)', borderRadius: 11, padding: 3, border: '1px solid rgba(243,237,227,.12)' }}>
+                    {[['aluguel', 'Alugar'], ['venda', 'Comprar'], ['todos', 'Tudo']].map(([k, l]) => (
+                      <button key={k} onClick={() => setFilter(k)} style={{ flex: 1, padding: '11px 6px', borderRadius: 9, border: 0, fontSize: 13.5, fontWeight: filter === k ? 700 : 500, background: filter === k ? 'var(--accent)' : 'transparent', color: filter === k ? '#2A2117' : 'var(--sand)', cursor: 'pointer' }}>{l}</button>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+                  <div style={buscaLabel}>TIPO DE IMÓVEL</div>
+                  <select value={fTipo} onChange={e => setFTipo(e.target.value)} style={buscaField}>
+                    <option value="todos">Todos os tipos</option>
+                    {CATEGORIAS.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+
+                <div style={{ flex: '1 1 240px', minWidth: 0 }}>
+                  <div style={buscaLabel}>FAIXA DE VALOR</div>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <div style={{ ...buscaField, display: 'flex', alignItems: 'center', gap: 5, flex: 1, minWidth: 0, padding: '0 12px' }}>
+                      <span style={{ fontSize: 13, color: 'var(--muted)' }}>R$</span>
+                      <input value={maskThousands(fMin)} onChange={e => setFMin(e.target.value)} placeholder="mín." inputMode="numeric" style={{ flex: 1, minWidth: 0, background: 'transparent', border: 0, padding: '13px 0', fontSize: 15, color: 'var(--cream)' }} />
+                    </div>
+                    <div style={{ ...buscaField, display: 'flex', alignItems: 'center', gap: 5, flex: 1, minWidth: 0, padding: '0 12px' }}>
+                      <span style={{ fontSize: 13, color: 'var(--muted)' }}>R$</span>
+                      <input value={maskThousands(fMax)} onChange={e => setFMax(e.target.value)} placeholder="máx." inputMode="numeric" style={{ flex: 1, minWidth: 0, background: 'transparent', border: 0, padding: '13px 0', fontSize: 15, color: 'var(--cream)' }} />
+                    </div>
+                  </div>
+                </div>
+
+                <button onClick={() => goToList(filter)} style={{ flex: isMobile ? '1 1 100%' : '0 0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: 'var(--accent)', color: '#2A2117', border: 0, borderRadius: 11, padding: '15px 24px', fontSize: 14.5, fontWeight: 700, cursor: 'pointer' }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" /></svg>
+                  Ver {lista.length} {lista.length === 1 ? 'imóvel' : 'imóveis'}
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', fontSize: 12, color: 'var(--muted)' }}>
+                <span>Bairros:</span>
+                {BAIRROS.slice(0, isMobile ? 3 : 6).map(b => (
+                  <button key={b} onClick={() => { setFBairro(fBairro.toLowerCase() === b.toLowerCase() ? '' : b); goToList(filter); }}
+                    style={{ padding: '5px 12px', borderRadius: 999, fontSize: 12, cursor: 'pointer', border: `1px solid ${fBairro.toLowerCase() === b.toLowerCase() ? 'var(--accent)' : 'rgba(243,237,227,.18)'}`, background: fBairro.toLowerCase() === b.toLowerCase() ? 'rgba(232,168,124,.14)' : 'transparent', color: fBairro.toLowerCase() === b.toLowerCase() ? 'var(--accent)' : 'var(--sand)' }}>{b}</button>
+                ))}
+                <button onClick={() => { setShowFilters(true); goToList(filter); }} style={{ background: 'transparent', border: 0, color: 'var(--accent)', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>mais filtros →</button>
               </div>
             </div>
           </div>
@@ -259,6 +313,8 @@ const chip = (sel) => ({
 const navLink = {
   background: 'transparent', border: 0, color: 'var(--sand)', fontSize: 14, cursor: 'pointer', padding: 0, fontFamily: 'inherit'
 };
+const buscaLabel = { fontSize: 10, fontWeight: 700, letterSpacing: '.14em', color: 'var(--taupe)', marginBottom: 6 };
+const buscaField = { width: '100%', boxSizing: 'border-box', background: 'var(--bg-2)', border: '1px solid rgba(243,237,227,.12)', borderRadius: 11, padding: '13px 12px', fontSize: 15, color: 'var(--cream)', appearance: 'none' };
 const inp = {
   width: '100%', maxWidth: 420, background: 'var(--bg)', border: '1px solid rgba(243,237,227,.15)',
   borderRadius: 12, padding: '13px 16px', fontSize: 16, color: 'var(--cream)'

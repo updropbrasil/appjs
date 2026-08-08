@@ -21,6 +21,7 @@ export default function GestaoClient({ initialImoveis, initialParceiros, initial
   const [otim, setOtim] = useState(null); // {total, feitas, erros} | null
   const [showPortais, setShowPortais] = useState(false);
   const [copiado, setCopiado] = useState(false);
+  const [abaPortal, setAbaPortal] = useState('no-portal');
   const [zapEmail, setZapEmail] = useState(initialZapEmail || '');
   const [zapSalvo, setZapSalvo] = useState(true);
   async function salvarZapEmail() {
@@ -28,11 +29,14 @@ export default function GestaoClient({ initialImoveis, initialParceiros, initial
     setZapSalvo(true);
   }
   const feedUrl = `${SITE_URL}/feed/zap.xml`;
-  const pendencias = imoveis
-    .filter(i => i.status === 'ativo' && i.zap_ativo !== false)
-    .map(i => ({ im: i, motivo: motivoInapto(i) }))
-    .filter(x => x.motivo);
-  const noPortal = imoveis.filter(i => i.status === 'ativo' && i.zap_ativo !== false && !motivoInapto(i)).length;
+  const listaPortal = { no: [], fora: [], pendente: [] };
+  imoveis.filter(i => i.status === 'ativo').forEach(im => {
+    if (im.zap_ativo === false) { listaPortal.fora.push({ im, motivo: null }); return; }
+    const motivo = motivoInapto(im);
+    if (motivo) listaPortal.pendente.push({ im, motivo });
+    else listaPortal.no.push({ im, motivo: null });
+  });
+  const noPortal = listaPortal.no.length;
 
   // Reprocessa as fotos já publicadas: gera a versão leve e recomprime a grande.
   async function otimizarFotos() {
@@ -108,6 +112,11 @@ export default function GestaoClient({ initialImoveis, initialParceiros, initial
     setHeroUrlInput('');
   }
 
+  async function toggleZap(im) {
+    const novo = im.zap_ativo === false;
+    await supabase.from('imoveis').update({ zap_ativo: novo }).eq('id', im.id);
+    setImoveis(l => l.map(x => x.id === im.id ? { ...x, zap_ativo: novo } : x));
+  }
   async function togglePausa(im) {
     const novo = im.status === 'ativo' ? 'pausado' : 'ativo';
     await supabase.from('imoveis').update({ status: novo }).eq('id', im.id);
@@ -275,22 +284,36 @@ export default function GestaoClient({ initialImoveis, initialParceiros, initial
                 <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 6 }}>É para onde o portal manda os leads de e-mail. Sem ele, os anúncios são recusados.</div>
               </div>
 
-              {pendencias.length > 0 && (
-                <div style={{ borderTop: '1px solid var(--line)', paddingTop: 12 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#c8a87a', marginBottom: 8 }}>{pendencias.length} imóvel(is) fora do portal — falta:</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    {pendencias.map(({ im, motivo }) => (
-                      <div key={im.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 9, padding: '9px 12px' }}>
-                        <span style={{ fontSize: 12.5, color: 'var(--sand)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{im.codigo ? `${im.codigo} · ` : ''}{im.titulo}</span>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 'none' }}>
-                          <span style={{ fontSize: 11.5, color: '#c8a87a' }}>{motivo}</span>
-                          <Link href={`/admin/novo?id=${im.id}`} style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--accent)' }}>corrigir</Link>
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+              <div style={{ borderTop: '1px solid var(--line)', paddingTop: 12 }}>
+                <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
+                  {[['no-portal', `No portal (${listaPortal.no.length})`], ['fora', `Fora (${listaPortal.fora.length})`], ['pendente', `Falta algo (${listaPortal.pendente.length})`]].map(([k, label]) => (
+                    <button key={k} onClick={() => setAbaPortal(k)} style={{ padding: '7px 13px', borderRadius: 999, fontSize: 12, fontWeight: abaPortal === k ? 700 : 400, background: abaPortal === k ? 'var(--cream)' : 'transparent', color: abaPortal === k ? '#2A2117' : 'var(--sand)', border: `1px solid ${abaPortal === k ? 'var(--cream)' : 'rgba(243,237,227,.2)'}` }}>{label}</button>
+                  ))}
                 </div>
-              )}
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {(abaPortal === 'no-portal' ? listaPortal.no : abaPortal === 'fora' ? listaPortal.fora : listaPortal.pendente).map(({ im, motivo }) => (
+                    <div key={im.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 9, padding: '9px 12px' }}>
+                      <span style={{ minWidth: 0, flex: 1 }}>
+                        <span style={{ display: 'block', fontSize: 12.5, color: 'var(--sand)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{im.codigo ? `${im.codigo} · ` : ''}{im.titulo}</span>
+                        {motivo && <span style={{ fontSize: 11, color: '#c8a87a' }}>falta: {motivo}</span>}
+                      </span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 'none' }}>
+                        {motivo && motivo !== 'desligado para portais' && (
+                          <Link href={`/admin/novo?id=${im.id}`} style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--accent)' }}>corrigir</Link>
+                        )}
+                        <button onClick={() => toggleZap(im)} title={im.zap_ativo === false ? 'Colocar no portal' : 'Tirar do portal'}
+                          style={{ width: 46, height: 26, flex: 'none', borderRadius: 999, border: 0, padding: 3, background: im.zap_ativo === false ? 'rgba(243,237,227,.14)' : 'var(--green)', display: 'flex', justifyContent: im.zap_ativo === false ? 'flex-start' : 'flex-end' }}>
+                          <span style={{ width: 20, height: 20, borderRadius: 999, background: '#F3EDE3', display: 'block' }}></span>
+                        </button>
+                      </span>
+                    </div>
+                  ))}
+                  {(abaPortal === 'no-portal' ? listaPortal.no : abaPortal === 'fora' ? listaPortal.fora : listaPortal.pendente).length === 0 && (
+                    <div style={{ textAlign: 'center', padding: 18, fontSize: 12.5, color: 'var(--muted)' }}>Nenhum imóvel aqui.</div>
+                  )}
+                </div>
+              </div>
 
               <div style={{ borderTop: '1px solid var(--line)', paddingTop: 12, fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.6 }}>
                 Regras do portal: mínimo de <strong style={{ color: 'var(--sand)' }}>5 fotos</strong> por anúncio, CEP obrigatório, e o vídeo precisa ser do <strong style={{ color: 'var(--sand)' }}>YouTube</strong> (vídeo próprio não é aceito lá — no nosso site continua funcionando).
@@ -343,6 +366,7 @@ export default function GestaoClient({ initialImoveis, initialParceiros, initial
                       <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--cream-2)' }}>{im.titulo}</span>
                       {im.codigo && <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', padding: '3px 8px', borderRadius: 5, background: 'var(--bg)', border: '1px solid var(--line)', color: 'var(--taupe)' }}>{im.codigo}</span>}
                       <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 5, background: pausado ? 'rgba(243,237,227,.1)' : 'rgba(168,192,143,.15)', color: pausado ? 'var(--taupe)' : 'var(--green)' }}>{pausado ? 'PAUSADO' : 'NO AR'}</span>
+                      {!pausado && im.zap_ativo !== false && !motivoInapto(im) && <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 5, background: 'rgba(120,150,200,.15)', border: '1px solid rgba(120,150,200,.3)', color: '#9db4d8' }}>PORTAL</span>}
                       {im.parceiros?.nome && <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 5, background: 'rgba(232,168,124,.12)', border: '1px solid rgba(232,168,124,.3)', color: 'var(--accent)' }}>{im.parceiros.nome}{im.parceiro_pct ? ` · ${im.parceiro_pct}%` : ''}</span>}
                     </div>
                     <div style={{ fontSize: 12.5, color: 'var(--taupe)', marginTop: 3 }}>{im.bairro} · {formatPreco(im.preco_cents)}{im.finalidade === 'aluguel' ? '/mês' : ''}</div>

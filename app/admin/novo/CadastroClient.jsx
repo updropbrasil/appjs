@@ -48,11 +48,11 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
     banheiros: imovel.banheiros || 0, vagas: imovel.vagas || 0, area: imovel.area_m2 || '', andar: imovel.andar || '',
     preco: imovel.preco_cents ? String(imovel.preco_cents / 100) : '', condominio: '', iptu: '',
     video: imovel.youtube_url || '', videoUrl: imovel.video_file_url || '', videoMode: imovel.video_file_url ? 'arquivo' : 'link', descricao: imovel.descricao || '',
-    parceiro_id: imovel.parceiro_id || '', parceiro_pct: imovel.parceiro_pct || '', codigo: imovel.codigo || ''
+    parceiro_id: imovel.parceiro_id || '', parceiro_pct: imovel.parceiro_pct || '', codigo: imovel.codigo || '', cep: imovel.cep || ''
   } : {
     finalidade: 'aluguel', categoria: 'Apartamento', titulo: '', bairro: '', endereco: '', referencia: '',
     mobilia: 'sem', quartos: 3, suites: 1, banheiros: 2, vagas: 2, area: '', andar: '', preco: '', condominio: '', iptu: '',
-    video: '', videoUrl: '', videoMode: 'link', descricao: '', parceiro_id: '', parceiro_pct: '', codigo: ''
+    video: '', videoUrl: '', videoMode: 'link', descricao: '', parceiro_id: '', parceiro_pct: '', codigo: '', cep: ''
   });
 
   const set = (patch) => setForm(f => ({ ...f, ...patch }));
@@ -114,6 +114,7 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
         capa_url: (form.videoMode === 'link' && vid) ? `https://i.ytimg.com/vi/${vid}/hqdefault.jpg` : (imovel?.capa_url || null),
         descricao: form.descricao || null,
         codigo: (form.codigo || '').trim().toUpperCase() || codigoSugerido,
+        cep: (form.cep || '').trim() || null,
         parceiro_id: form.parceiro_id || null, parceiro_pct: form.parceiro_id ? (Number(form.parceiro_pct) || null) : null,
         status: 'ativo'
       };
@@ -236,6 +237,10 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
                   ))}
                 </div>
                 <Hint>Toque numa sugestão ou escreva outro bairro.</Hint>
+              </Field>
+              <Field label="CEP">
+                <input value={form.cep} onChange={e => set({ cep: maskCep(e.target.value) })} placeholder="58000-000" inputMode="numeric" style={inp} />
+                <Hint>Obrigatório para publicar no Zap / VivaReal / OLX. Não aparece no nosso site.</Hint>
               </Field>
               <Field label="Endereço completo — 🔒 NÃO APARECE NO SITE">
                 <input value={form.endereco} onChange={e => set({ endereco: e.target.value })} placeholder="Rua, número, complemento…" style={inp} />
@@ -465,6 +470,10 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
 }
 
 const inp = { width: '100%', boxSizing: 'border-box', background: 'var(--bg-2)', border: '1px solid rgba(243,237,227,.15)', borderRadius: 12, padding: '15px 16px', fontSize: 16, color: 'var(--cream)' };
+const maskCep = (v) => {
+  const n = String(v).replace(/\D/g, '').slice(0, 8);
+  return n.length > 5 ? `${n.slice(0, 5)}-${n.slice(5)}` : n;
+};
 const dinInp = { display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg-2)', border: '1px solid rgba(243,237,227,.15)', borderRadius: 12, padding: '0 14px' };
 const dinR = { fontSize: 14, color: 'var(--muted)' };
 const dinField = { flex: 1, minWidth: 0, background: 'transparent', border: 0, padding: '15px 0', fontSize: 16, color: 'var(--cream)' };

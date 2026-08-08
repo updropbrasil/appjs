@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '../../lib/supabase-browser';
 import { uploadToR2, deleteFromR2 } from '../../lib/r2-upload';
+import { compressBlob, fetchBlob } from '../../lib/image';
 import { formatPreco, ytId, ytThumb } from '../../lib/format';
 
 export default function GestaoClient({ initialImoveis, initialParceiros, initialHero, initialHeroFile }) {
@@ -15,6 +16,40 @@ export default function GestaoClient({ initialImoveis, initialParceiros, initial
   const [aba, setAba] = useState('todos');
   const [confirm, setConfirm] = useState(null);
   const [excluindo, setExcluindo] = useState(null);
+  const [otim, setOtim] = useState(null); // {total, feitas, erros} | null
+
+  // Reprocessa as fotos já publicadas: gera a versão leve e recomprime a grande.
+  async function otimizarFotos() {
+    const { data: fotos } = await supabase
+      .from('imovel_fotos')
+      .select('id, url, thumb_url')
+      .is('thumb_url', null);
+    const lista = (fotos || []).filter(f => f.url);
+    if (!lista.length) { setOtim({ total: 0, feitas: 0, erros: 0, fim: true }); return; }
+    setOtim({ total: lista.length, feitas: 0, erros: 0 });
+    let feitas = 0, erros = 0;
+    for (const f of lista) {
+      try {
+        const orig = await fetchBlob(f.url);
+        const grande = await compressBlob(orig, 1600, 0.8);
+        const leve = await compressBlob(orig, 520, 0.62);
+        if (!leve) throw new Error('falha ao processar');
+        const thumbUrl = await uploadToR2(new File([leve], 'thumb.jpg', { type: 'image/jpeg' }), null, 'fotos');
+        let novaUrl = null;
+        // só troca a grande se realmente ficou mais leve
+        if (grande && grande.size < orig.size * 0.9) {
+          novaUrl = await uploadToR2(new File([grande], 'foto.jpg', { type: 'image/jpeg' }), null, 'fotos');
+        }
+        await supabase.from('imovel_fotos')
+          .update(novaUrl ? { thumb_url: thumbUrl, url: novaUrl } : { thumb_url: thumbUrl })
+          .eq('id', f.id);
+        feitas++;
+      } catch (e) { erros++; }
+      setOtim({ total: lista.length, feitas, erros });
+    }
+    setOtim({ total: lista.length, feitas, erros, fim: true });
+    router.refresh();
+  }
   const [showParceiros, setShowParceiros] = useState(false);
   const [pNome, setPNome] = useState(''); const [pPct, setPPct] = useState('');
   const [hero, setHero] = useState(initialHero || '');
@@ -85,7 +120,6 @@ export default function GestaoClient({ initialImoveis, initialParceiros, initial
     }
     setConfirm(null);
     setExcluindo(null);
-  }
   }
   async function addParceiro() {
     if (!pNome.trim()) return;
@@ -199,6 +233,22 @@ export default function GestaoClient({ initialImoveis, initialParceiros, initial
 
           <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar por código, título ou bairro…" style={{ width: '100%', background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 12, padding: '14px 16px', fontSize: 16, color: 'var(--cream)' }} />
 
+          {/* OTIMIZAR FOTOS ANTIGAS */}
+          <div style={{ background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 12, padding: '13px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--cream-2)' }}>Acelerar fotos antigas</div>
+              <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 2 }}>
+                {otim && !otim.fim ? `Processando ${otim.feitas} de ${otim.total}… deixe esta tela aberta.`
+                  : otim && otim.fim ? (otim.total === 0 ? 'Tudo já está otimizado ✓' : `Pronto: ${otim.feitas} fotos otimizadas${otim.erros ? ` · ${otim.erros} falharam` : ''}.`)
+                  : 'Reprocessa as fotos já publicadas para carregarem na hora.'}
+              </div>
+            </div>
+            <button onClick={otimizarFotos} disabled={otim && !otim.fim}
+              style={{ padding: '11px 16px', borderRadius: 10, border: '1px solid rgba(232,168,124,.4)', background: otim && !otim.fim ? 'transparent' : 'rgba(232,168,124,.12)', color: 'var(--accent)', fontSize: 13, fontWeight: 700, opacity: otim && !otim.fim ? 0.6 : 1 }}>
+              {otim && !otim.fim ? 'Otimizando…' : 'Otimizar agora'}
+            </button>
+          </div>
+
           <div style={{ display: 'flex', gap: 8 }}>
             {[['todos', `Todos (${imoveis.length})`], ['ativos', `Ativos (${ativos})`], ['pausados', `Pausados (${pausados})`]].map(([k, label]) => (
               <button key={k} onClick={() => setAba(k)} style={{ padding: '8px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: aba === k ? 700 : 400, background: aba === k ? 'var(--cream)' : 'transparent', color: aba === k ? '#2A2117' : 'var(--cream)', border: `1px solid ${aba === k ? 'var(--cream)' : 'rgba(243,237,227,.25)'}` }}>{label}</button>
@@ -208,7 +258,8 @@ export default function GestaoClient({ initialImoveis, initialParceiros, initial
           {lista.map(im => {
             const vid = ytId(im.youtube_url);
             const pausado = im.status === 'pausado';
-            const foto0 = (im.imovel_fotos || []).slice().sort((a, b) => (a.ordem || 0) - (b.ordem || 0))[0]?.url;
+            const f0 = (im.imovel_fotos || []).slice().sort((a, b) => (a.ordem || 0) - (b.ordem || 0))[0];
+            const foto0 = f0?.thumb_url || f0?.url;
             const thumb = vid ? ytThumb(vid) : (im.capa_url || foto0 || '');
             return (
               <div key={im.id} style={{ display: 'flex', gap: 14, background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 14, padding: 12, opacity: pausado ? 0.55 : 1 }}>

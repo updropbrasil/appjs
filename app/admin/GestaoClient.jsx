@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '../../lib/supabase-browser';
 import { uploadToR2, deleteFromR2 } from '../../lib/r2-upload';
-import { compressBlob, fetchBlob } from '../../lib/image';
+import { compressBlob, fetchBlob, toWideBlob } from '../../lib/image';
 import { formatPreco, ytId, ytThumb } from '../../lib/format';
 import { motivoInapto } from '../../lib/zap-feed';
 
@@ -23,8 +23,8 @@ export default function GestaoClient({ initialImoveis, initialParceiros, initial
   async function otimizarFotos() {
     const { data: fotos } = await supabase
       .from('imovel_fotos')
-      .select('id, url, thumb_url')
-      .is('thumb_url', null);
+      .select('id, url, thumb_url, wide_url')
+      .or('thumb_url.is.null,wide_url.is.null');
     const lista = (fotos || []).filter(f => f.url);
     if (!lista.length) { setOtim({ total: 0, feitas: 0, erros: 0, fim: true }); return; }
     setOtim({ total: lista.length, feitas: 0, erros: 0 });
@@ -34,15 +34,17 @@ export default function GestaoClient({ initialImoveis, initialParceiros, initial
         const orig = await fetchBlob(f.url);
         const grande = await compressBlob(orig, 1600, 0.8);
         const leve = await compressBlob(orig, 520, 0.62);
+        const deitada = await toWideBlob(orig);
         if (!leve) throw new Error('falha ao processar');
-        const thumbUrl = await uploadToR2(new File([leve], 'thumb.jpg', { type: 'image/jpeg' }), null, 'fotos');
+        const thumbUrl = f.thumb_url || await uploadToR2(new File([leve], 'thumb.jpg', { type: 'image/jpeg' }), null, 'fotos');
+        const wideUrl = f.wide_url || (deitada ? await uploadToR2(new File([deitada], 'wide.jpg', { type: 'image/jpeg' }), null, 'fotos') : null);
         let novaUrl = null;
         // só troca a grande se realmente ficou mais leve
         if (grande && grande.size < orig.size * 0.9) {
           novaUrl = await uploadToR2(new File([grande], 'foto.jpg', { type: 'image/jpeg' }), null, 'fotos');
         }
         await supabase.from('imovel_fotos')
-          .update(novaUrl ? { thumb_url: thumbUrl, url: novaUrl } : { thumb_url: thumbUrl })
+          .update(novaUrl ? { thumb_url: thumbUrl, wide_url: wideUrl, url: novaUrl } : { thumb_url: thumbUrl, wide_url: wideUrl })
           .eq('id', f.id);
         feitas++;
       } catch (e) { erros++; }
@@ -169,6 +171,7 @@ export default function GestaoClient({ initialImoveis, initialParceiros, initial
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={() => setShowParceiros(v => !v)} style={{ padding: '11px 16px', borderRadius: 10, border: '1px solid rgba(232,168,124,.4)', background: 'transparent', color: 'var(--accent)', fontSize: 13, fontWeight: 700 }}>Parceiros</button>
             <Link href="/admin/portais" style={{ display: 'flex', alignItems: 'center', padding: '11px 16px', borderRadius: 10, border: '1px solid rgba(232,168,124,.4)', color: 'var(--accent)', fontSize: 13, fontWeight: 700 }}>Portais</Link>
+            <Link href="/admin/leads" style={{ display: 'flex', alignItems: 'center', padding: '11px 16px', borderRadius: 10, border: '1px solid rgba(232,168,124,.4)', color: 'var(--accent)', fontSize: 13, fontWeight: 700 }}>Leads</Link>
             <Link href="/admin/novo" style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--accent)', color: '#2A2117', padding: '11px 18px', borderRadius: 10, fontSize: 13.5, fontWeight: 700 }}>+ Novo imóvel</Link>
             <button onClick={sair} title="Sair" style={{ padding: '11px 14px', borderRadius: 10, border: '1px solid rgba(243,237,227,.15)', background: 'transparent', color: 'var(--muted)', fontSize: 13 }}>Sair</button>
           </div>
@@ -243,11 +246,11 @@ export default function GestaoClient({ initialImoveis, initialParceiros, initial
           {/* OTIMIZAR FOTOS ANTIGAS */}
           <div style={{ background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 12, padding: '13px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--cream-2)' }}>Acelerar fotos antigas</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--cream-2)' }}>Acelerar fotos antigas + versão do portal</div>
               <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 2 }}>
                 {otim && !otim.fim ? `Processando ${otim.feitas} de ${otim.total}… deixe esta tela aberta.`
                   : otim && otim.fim ? (otim.total === 0 ? 'Tudo já está otimizado ✓' : `Pronto: ${otim.feitas} fotos otimizadas${otim.erros ? ` · ${otim.erros} falharam` : ''}.`)
-                  : 'Reprocessa as fotos já publicadas para carregarem na hora.'}
+                  : 'Deixa as fotos já publicadas carregando na hora e gera a versão deitada que os portais exigem.'}
               </div>
             </div>
             <button onClick={otimizarFotos} disabled={otim && !otim.fim}

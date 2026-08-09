@@ -14,6 +14,8 @@ export default function PortaisClient({ initialImoveis, initialEmail }) {
   const [email, setEmail] = useState(initialEmail || '');
   const [emailSalvo, setEmailSalvo] = useState(true);
   const [aberto, setAberto] = useState(null);
+  const [sel, setSel] = useState([]);
+  const [aplicando, setAplicando] = useState(false);
 
   const feedUrl = `${SITE_URL}/feed/zap.xml`;
 
@@ -25,6 +27,14 @@ export default function PortaisClient({ initialImoveis, initialEmail }) {
     const novo = im.zap_ativo === false;
     await supabase.from('imoveis').update({ zap_ativo: novo }).eq('id', im.id);
     setImoveis(l => l.map(x => x.id === im.id ? { ...x, zap_ativo: novo } : x));
+  }
+  async function aplicarEmMassa(ligar) {
+    if (!sel.length) return;
+    setAplicando(true);
+    await supabase.from('imoveis').update({ zap_ativo: ligar }).in('id', sel);
+    setImoveis(l => l.map(x => sel.includes(x.id) ? { ...x, zap_ativo: ligar } : x));
+    setSel([]);
+    setAplicando(false);
   }
 
   const grupos = { no: [], fora: [], pendente: [] };
@@ -87,9 +97,31 @@ export default function PortaisClient({ initialImoveis, initialEmail }) {
           {/* ABAS */}
           <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
             {[['no-portal', `No portal (${grupos.no.length})`], ['pendente', `Falta ajustar (${grupos.pendente.length})`], ['fora', `Desligados (${grupos.fora.length})`]].map(([k, label]) => (
-              <button key={k} onClick={() => setAba(k)} style={{ padding: '9px 15px', borderRadius: 999, fontSize: 12.5, fontWeight: aba === k ? 700 : 400, background: aba === k ? 'var(--cream)' : 'transparent', color: aba === k ? '#2A2117' : 'var(--cream)', border: `1px solid ${aba === k ? 'var(--cream)' : 'rgba(243,237,227,.25)'}` }}>{label}</button>
+              <button key={k} onClick={() => { setAba(k); setSel([]); }} style={{ padding: '9px 15px', borderRadius: 999, fontSize: 12.5, fontWeight: aba === k ? 700 : 400, background: aba === k ? 'var(--cream)' : 'transparent', color: aba === k ? '#2A2117' : 'var(--cream)', border: `1px solid ${aba === k ? 'var(--cream)' : 'rgba(243,237,227,.25)'}` }}>{label}</button>
             ))}
           </div>
+
+          {/* SELEÇÃO EM MASSA */}
+          {lista.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', background: sel.length ? 'rgba(232,168,124,.1)' : 'var(--bg-2)', border: `1px solid ${sel.length ? 'rgba(232,168,124,.35)' : 'var(--line)'}`, borderRadius: 12, padding: '10px 14px' }}>
+              <button onClick={() => setSel(sel.length === lista.length ? [] : lista.map(({ im }) => im.id))}
+                style={{ display: 'flex', alignItems: 'center', gap: 9, background: 'transparent', border: 0, color: 'var(--cream)', fontSize: 13, padding: 0 }}>
+                <span style={{ width: 20, height: 20, flex: 'none', borderRadius: 6, border: `1.5px solid ${sel.length === lista.length ? 'var(--accent)' : 'rgba(243,237,227,.3)'}`, background: sel.length === lista.length ? 'var(--accent)' : 'transparent', color: '#2A2117', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>{sel.length === lista.length ? '✓' : ''}</span>
+                {sel.length === lista.length ? 'Desmarcar todos' : 'Selecionar todos'}
+              </button>
+              {sel.length > 0 && (
+                <>
+                  <span style={{ fontSize: 12.5, color: 'var(--taupe)' }}>{sel.length} selecionado(s)</span>
+                  <span style={{ display: 'flex', gap: 8, marginLeft: 'auto', flexWrap: 'wrap' }}>
+                    <button onClick={() => aplicarEmMassa(true)} disabled={aplicando}
+                      style={{ padding: '9px 15px', borderRadius: 9, border: 0, background: 'var(--green)', color: '#1F1812', fontSize: 12.5, fontWeight: 700, opacity: aplicando ? 0.6 : 1 }}>Ligar no portal</button>
+                    <button onClick={() => aplicarEmMassa(false)} disabled={aplicando}
+                      style={{ padding: '9px 15px', borderRadius: 9, border: '1px solid rgba(243,237,227,.25)', background: 'transparent', color: 'var(--sand)', fontSize: 12.5, fontWeight: 700, opacity: aplicando ? 0.6 : 1 }}>Desligar</button>
+                  </span>
+                </>
+              )}
+            </div>
+          )}
 
           {/* LISTA */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -99,6 +131,8 @@ export default function PortaisClient({ initialImoveis, initialEmail }) {
               return (
                 <div key={im.id} style={{ background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 12, overflow: 'hidden' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px' }}>
+                    <button onClick={() => setSel(s => s.includes(im.id) ? s.filter(x => x !== im.id) : [...s, im.id])} aria-label="Selecionar"
+                      style={{ width: 20, height: 20, flex: 'none', borderRadius: 6, border: `1.5px solid ${sel.includes(im.id) ? 'var(--accent)' : 'rgba(243,237,227,.3)'}`, background: sel.includes(im.id) ? 'var(--accent)' : 'transparent', color: '#2A2117', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1, padding: 0 }}>{sel.includes(im.id) ? '✓' : ''}</button>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13.5, color: 'var(--cream-2)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {im.codigo ? <span style={{ color: 'var(--taupe)', fontWeight: 400 }}>{im.codigo} · </span> : null}{im.titulo}

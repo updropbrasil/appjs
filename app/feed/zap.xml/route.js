@@ -14,7 +14,7 @@ export async function GET() {
   const [{ data: imoveis }, { data: cfg }] = await Promise.all([
     supabase
       .from('imoveis')
-      .select('*, imovel_fotos(url, ordem)')
+      .select('*, imovel_fotos(url, wide_url, ordem)')
       .eq('status', 'ativo')
       .order('created_at', { ascending: false })
       .limit(50000),

@@ -5,6 +5,7 @@ import { createClient } from '../../../lib/supabase-browser';
 import { uploadToR2 } from '../../../lib/r2-upload';
 import { ytId, ytThumb, parsePreco, formatPreco, slugify, tituloSeo, MOBILIA_LABELS, maskThousands, onlyDigits } from '../../../lib/format';
 import { qualidadeAnuncio } from '../../../lib/zap-feed';
+import { toWideBlob } from '../../../lib/image';
 
 const CATEGORIAS = ['Apartamento', 'Casa', 'Cobertura', 'Flat / Studio', 'Comercial'];
 const BAIRROS = ['Cabo Branco', 'Manaíra', 'Tambaú', 'Bessa', 'Altiplano', 'Intermares'];
@@ -80,6 +81,12 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
     const pre = form.finalidade === 'venda' ? 'JDV' : 'JDA';
     return `${pre}-${Math.floor(1000 + Math.random() * 9000)}`;
   }, [form.finalidade]);
+
+  // capa que a prévia mostra: vídeo do YouTube → foto nova → foto já salva → capa do imóvel
+  const capaPreview = (form.videoMode === 'link' && vid) ? ytThumb(vid)
+    : (novasFotos[0]?.preview || (fotosIniciais || [])[0]?.url || imovel?.capa_url || '');
+  const capaBg = capaPreview ? `url("${capaPreview}") center/cover` : '#463928';
+  const videoPreviewUrl = form.videoMode === 'arquivo' ? (videoArquivo?.preview || imovel?.video_file_url || '') : '';
 
   // prévia da força do anúncio nos portais (mesma conta da página Portais)
   const qual = qualidadeAnuncio({
@@ -179,10 +186,12 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
       for (let i = 0; i < novasFotos.length; i++) {
         const blob = await compressImage(novasFotos[i].file);
         const thumbBlob = await compressImage(novasFotos[i].file, 520, 0.62);
-        let url = null, thumbUrl = null, path = null;
+        const wideBlob = await toWideBlob(novasFotos[i].file);
+        let url = null, thumbUrl = null, wideUrl = null, path = null;
         try {
           url = await uploadToR2(new File([blob], `foto-${i}.jpg`, { type: 'image/jpeg' }), null, 'fotos');
           thumbUrl = await uploadToR2(new File([thumbBlob], `thumb-${i}.jpg`, { type: 'image/jpeg' }), null, 'fotos');
+          if (wideBlob) wideUrl = await uploadToR2(new File([wideBlob], `wide-${i}.jpg`, { type: 'image/jpeg' }), null, 'fotos');
         } catch (e) { url = null; }
         if (!url) {
           path = `${imovelId}/${Date.now()}-${i}.jpg`;
@@ -192,7 +201,7 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
           url = pub.publicUrl;
         }
         if (!primeiraFotoUrl) primeiraFotoUrl = thumbUrl || url;
-        await supabase.from('imovel_fotos').insert({ imovel_id: imovelId, path, url, thumb_url: thumbUrl, ordem: i });
+        await supabase.from('imovel_fotos').insert({ imovel_id: imovelId, path, url, thumb_url: thumbUrl, wide_url: wideUrl, ordem: i });
       }
       // se não é YouTube e ainda não tem capa, usa a 1ª foto como capa/poster
       if (form.videoMode === 'arquivo' && primeiraFotoUrl) {
@@ -484,7 +493,8 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
               </div>
               <div style={{ fontSize: 13, color: 'var(--taupe)' }}>É assim que o anúncio aparece no site:</div>
               <div style={{ background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 14, overflow: 'hidden' }}>
-                <div style={{ aspectRatio: '16/10', background: vid ? `url("${ytThumb(vid)}") center/cover` : (novasFotos[0] ? `url("${novasFotos[0].preview}") center/cover` : '#463928'), position: 'relative' }}>
+                <div style={{ aspectRatio: '16/10', background: capaBg, position: 'relative' }}>
+                  {videoPreviewUrl && <video src={videoPreviewUrl} muted playsInline loop autoPlay style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
                   <span style={{ position: 'absolute', top: 12, left: 12, background: 'rgba(31,24,18,.85)', color: isAluguel ? 'var(--accent)' : 'var(--green)', fontSize: 10.5, fontWeight: 700, letterSpacing: '.14em', padding: '5px 10px', borderRadius: 6 }}>{isAluguel ? 'ALUGUEL' : 'VENDA'}</span>
                 </div>
                 <div style={{ padding: '16px 18px' }}>
@@ -523,9 +533,10 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
         <div style={{ width: 320, flex: 'none', position: 'sticky', top: 0, alignSelf: 'flex-start', padding: '32px 0', display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div style={{ fontSize: 11, letterSpacing: '.18em', color: 'var(--taupe)', fontWeight: 700 }}>PRÉVIA NO SITE</div>
           <div style={{ background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 14, overflow: 'hidden' }}>
-            <div style={{ position: 'relative', aspectRatio: '9/16', background: vid ? `url("${ytThumb(vid)}") center/cover` : (novasFotos[0] ? `url("${novasFotos[0].preview}") center/cover` : '#463928') }}>
+            <div style={{ position: 'relative', aspectRatio: '9/16', background: capaBg }}>
+              {videoPreviewUrl && <video src={videoPreviewUrl} muted playsInline loop autoPlay style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
               <span style={{ position: 'absolute', top: 12, left: 12, background: 'rgba(31,24,18,.85)', color: isAluguel ? 'var(--accent)' : 'var(--green)', fontSize: 10.5, fontWeight: 700, letterSpacing: '.14em', padding: '5px 10px', borderRadius: 6 }}>{isAluguel ? 'ALUGUEL' : 'VENDA'}</span>
-              {vid && <span style={{ position: 'absolute', bottom: 12, left: 12, width: 30, height: 30, borderRadius: 999, background: 'rgba(243,237,227,.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2A2117', fontSize: 12 }}>▶</span>}
+              {(vid || videoPreviewUrl) && <span style={{ position: 'absolute', bottom: 12, left: 12, width: 30, height: 30, borderRadius: 999, background: 'rgba(243,237,227,.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2A2117', fontSize: 12 }}>▶</span>}
             </div>
             <div style={{ padding: '14px 16px 16px' }}>
               <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--cream-2)' }}>{form.preco ? formatPreco(parsePreco(form.preco)) : 'R$ —'}<span style={{ fontSize: 12, color: 'var(--taupe)' }}>{isAluguel ? '/mês' : ''}</span></div>

@@ -83,10 +83,12 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
   }, [form.finalidade]);
 
   // capa que a prévia mostra: vídeo do YouTube → foto nova → foto já salva → capa do imóvel
-  const capaPreview = (form.videoMode === 'link' && vid) ? ytThumb(vid)
-    : (novasFotos[0]?.preview || (fotosIniciais || [])[0]?.url || imovel?.capa_url || '');
+  const foto1 = novasFotos[0]?.preview || (fotosIniciais || [])[0]?.url || (fotosIniciais || [])[0]?.thumb_url || '';
+  const capaPreview = (vid ? ytThumb(vid) : '') || foto1 || imovel?.capa_url || '';
   const capaBg = capaPreview ? `url("${capaPreview}") center/cover` : '#463928';
-  const videoPreviewUrl = form.videoMode === 'arquivo' ? (videoArquivo?.preview || imovel?.video_file_url || '') : '';
+  const videoPreviewUrl = videoArquivo?.preview
+    || (form.videoMode === 'arquivo' ? (form.videoUrl || imovel?.video_file_url || '') : '');
+  const semMidia = !capaPreview && !videoPreviewUrl;
 
   // prévia da força do anúncio nos portais (mesma conta da página Portais)
   const qual = qualidadeAnuncio({
@@ -494,7 +496,7 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
               <div style={{ fontSize: 13, color: 'var(--taupe)' }}>É assim que o anúncio aparece no site:</div>
               <div style={{ background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 14, overflow: 'hidden' }}>
                 <div style={{ aspectRatio: '16/10', background: capaBg, position: 'relative' }}>
-                  {videoPreviewUrl && <video src={videoPreviewUrl} muted playsInline loop autoPlay style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+                  {videoPreviewUrl && <video src={videoPreviewUrl} muted playsInline loop autoPlay preload="metadata" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
                   <span style={{ position: 'absolute', top: 12, left: 12, background: 'rgba(31,24,18,.85)', color: isAluguel ? 'var(--accent)' : 'var(--green)', fontSize: 10.5, fontWeight: 700, letterSpacing: '.14em', padding: '5px 10px', borderRadius: 6 }}>{isAluguel ? 'ALUGUEL' : 'VENDA'}</span>
                 </div>
                 <div style={{ padding: '16px 18px' }}>
@@ -534,7 +536,13 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
           <div style={{ fontSize: 11, letterSpacing: '.18em', color: 'var(--taupe)', fontWeight: 700 }}>PRÉVIA NO SITE</div>
           <div style={{ background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 14, overflow: 'hidden' }}>
             <div style={{ position: 'relative', aspectRatio: '9/16', background: capaBg }}>
-              {videoPreviewUrl && <video src={videoPreviewUrl} muted playsInline loop autoPlay style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+              {videoPreviewUrl && <video src={videoPreviewUrl} muted playsInline loop autoPlay preload="metadata" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+              {semMidia && (
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, color: 'rgba(243,237,227,.45)', fontSize: 12, textAlign: 'center', padding: 20 }}>
+                  <span style={{ fontSize: 22 }}>▶</span>
+                  Sem vídeo nem foto ainda—<br />adicione no passo “Vídeo e fotos”
+                </div>
+              )}
               <span style={{ position: 'absolute', top: 12, left: 12, background: 'rgba(31,24,18,.85)', color: isAluguel ? 'var(--accent)' : 'var(--green)', fontSize: 10.5, fontWeight: 700, letterSpacing: '.14em', padding: '5px 10px', borderRadius: 6 }}>{isAluguel ? 'ALUGUEL' : 'VENDA'}</span>
               {(vid || videoPreviewUrl) && <span style={{ position: 'absolute', bottom: 12, left: 12, width: 30, height: 30, borderRadius: 999, background: 'rgba(243,237,227,.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2A2117', fontSize: 12 }}>▶</span>}
             </div>

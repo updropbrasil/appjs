@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Calculadora de Fluxo de Pagamento</title>
+<meta name="theme-color" content="#2563eb">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Fluxo">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  :root{
+    --bg:#eef1f6; --card:#ffffff; --card2:#f3f5f9; --line:#dde2ea;
+    --txt:#161b24; --muted:#5b6472; --accent:#2563eb; --accent2:#2563eb;
+    --ok:#15a05a; --warn:#c8860b; --err:#dc2626; --radius:14px;
+  }
+  body.dark{
+    --bg:#0f1115; --card:#171a21; --card2:#1d212b; --line:#2a2f3a;
+    --txt:#e8eaf0; --muted:#9aa3b2; --accent:#3da9fc; --accent2:#2563eb;
+    --ok:#2ecc71; --warn:#ffb020; --err:#ff5c5c;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--txt);line-height:1.45;padding:24px 24px 88px}
+  .wrap{max-width:720px;margin:0 auto}
+  h1{font-size:22px;font-weight:700;margin-bottom:2px}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:20px}
+  .grid{display:flex;flex-direction:column;gap:18px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
+  .card h2{font-size:14px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:14px;font-weight:600}
+  label{display:block;font-size:13px;color:var(--muted);margin:12px 0 5px}
+  label:first-of-type{margin-top:0}
+  input,select{width:100%;background:var(--card2);border:1px solid var(--line);color:var(--txt);
+    border-radius:9px;padding:10px 12px;font-size:15px;outline:none}
+  input:focus,select:focus{border-color:var(--accent)}
+  .row{display:flex;gap:10px}
+  .row>*{flex:1}
+  .seg{display:flex;background:var(--card2);border:1px solid var(--line);border-radius:9px;overflow:hidden;margin-top:5px}
+  .seg button{flex:1;background:none;border:none;color:var(--muted);padding:9px 4px;font-size:13px;cursor:pointer}
+  .seg button.on{background:var(--accent2);color:#fff;font-weight:600}
+  .presets{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+  .presets button{background:var(--card2);border:1px solid var(--line);color:var(--txt);
+    border-radius:20px;padding:6px 14px;font-size:13px;cursor:pointer}
+  .presets button.on{background:var(--accent2);color:#fff;border-color:var(--accent2);font-weight:700}
+  .hint{font-size:12px;color:var(--muted);margin-top:5px}
+  /* resumo */
+  .res .line{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px dashed var(--line);font-size:14px}
+  .res .line:last-child{border:none}
+  .res .line .lbl{color:var(--muted)}
+  .res .line .val{font-weight:600;text-align:right}
+  .res .line small{display:block;color:var(--muted);font-weight:400;font-size:11px}
+  .total{display:flex;justify-content:space-between;align-items:center;background:var(--card2);
+    border-radius:10px;padding:12px 14px;margin-top:14px;font-size:16px;font-weight:700}
+  .total .v{color:var(--accent)}
+  .badge{display:inline-block;font-size:12px;font-weight:600;padding:4px 10px;border-radius:20px;margin-top:12px}
+  .badge.ok{background:rgba(46,204,113,.15);color:var(--ok)}
+  .badge.bad{background:rgba(255,92,92,.15);color:var(--err)}
+  .actions{display:flex;gap:10px;margin-top:16px}
+  .actions button{flex:1;border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:700;cursor:pointer}
+  .btn-wa{background:var(--ok);color:#0b0d11}
+  .btn-print{background:var(--card2);color:var(--txt);border:1px solid var(--line)!important}
+  .btn-clear{background:transparent;color:var(--err);border:1px solid var(--err)!important;flex:.6!important}
+  .barwrap{height:10px;background:var(--card2);border-radius:6px;overflow:hidden;display:flex;margin:8px 0 4px}
+  .barwrap i{display:block;height:100%}
+  .bar-antes{background:var(--accent)}
+  .bar-pos{background:var(--warn)}
+  .barleg{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+  .schedule{margin-top:14px;max-height:240px;overflow:auto;border:1px solid var(--line);border-radius:10px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-weight:600;position:sticky;top:0;background:var(--card)}
+  td.r,th.r{text-align:right}
+  .topbar{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px}
+  .themebtn{background:var(--card);border:1px solid var(--line);color:var(--txt);border-radius:20px;
+    padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+  .tabs{display:flex;gap:8px;margin-bottom:14px}
+  .tab{flex:1;background:var(--card2);border:1px solid var(--line);color:var(--muted);
+    border-radius:9px;padding:10px;font-size:13px;font-weight:600;cursor:pointer}
+  .tab.on{background:var(--accent2);color:#fff;border-color:var(--accent2)}
+  .wa-preview{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:16px;
+    font-size:13px;white-space:pre-wrap;word-break:break-word;color:var(--txt);max-height:420px;
+    overflow:auto;font-family:inherit;line-height:1.6;margin:0}
+  .stickybar{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);
+    display:flex;justify-content:center;align-items:center;gap:18px;padding:12px 20px;z-index:50;
+    box-shadow:0 -3px 14px rgba(0,0,0,.10);font-size:15px;flex-wrap:wrap}
+  .stickybar .sb-total{font-weight:700}
+  .stickybar .sb-total b{color:var(--accent)}
+  .sb-badge{font-size:12px;font-weight:700;padding:5px 12px;border-radius:20px}
+  .sb-badge.ok{background:rgba(21,160,90,.15);color:var(--ok)}
+  .sb-badge.bad{background:rgba(220,38,38,.15);color:var(--err)}
+  @media print{.stickybar{display:none}}
+  .toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--ok);
+    color:#0b0d11;padding:12px 22px;border-radius:30px;font-weight:700;opacity:0;transition:.3s;pointer-events:none}
+  .toast.show{opacity:1}
+  @media(max-width:600px){
+    body{padding:14px 14px 88px}
+    .card{padding:15px}
+    h1{font-size:19px}
+    .actions{flex-wrap:wrap}
+    .actions button{flex:1 1 100%}
+    .btn-clear{flex:1 1 100%!important}
+    input,select{font-size:16px} /* evita zoom automático no iOS */
+  }
+  /* safe-area pra iPhone (barra inferior não cobre conteúdo) */
+  .stickybar{padding-bottom:calc(12px + env(safe-area-inset-bottom))}
+  /* Estudo de Investimento */
+  .btn-estudo{width:100%;margin-top:10px;border:none;border-radius:10px;padding:13px;font-size:14px;
+    font-weight:700;cursor:pointer;background:linear-gradient(90deg,#0f766e,#0ea5a0);color:#fff}
+  .estudo-overlay{position:fixed;inset:0;background:var(--bg);z-index:100;overflow-y:auto;display:none;
+    padding:0 0 60px}
+  .estudo-overlay.show{display:block}
+  .est-head{position:sticky;top:0;background:var(--card);border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:12px;padding:14px 18px;z-index:2}
+  .est-back{background:var(--card2);border:1px solid var(--line);color:var(--txt);border-radius:9px;
+    padding:8px 14px;font-size:14px;font-weight:600;cursor:pointer}
+  .est-head h2{font-size:16px;margin:0}
+  .est-wrap{max-width:760px;margin:0 auto;padding:18px}
+  .seg-perfil{display:flex;gap:8px;margin-bottom:16px}
+  .seg-perfil button{flex:1;background:var(--card2);border:1px solid var(--line);color:var(--muted);
+    border-radius:10px;padding:12px;font-size:13px;font-weight:600;cursor:pointer}
+  .seg-perfil button.on{background:#0ea5a0;color:#fff;border-color:#0ea5a0}
+  .prem-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}
+  @media(max-width:560px){.prem-grid{grid-template-columns:1fr}}
+  .est-verdict{background:var(--card);border:1px solid var(--line);border-left:4px solid #0ea5a0;
+    border-radius:12px;padding:16px;margin:16px 0;font-size:14px;line-height:1.5}
+  .est-verdict b{color:var(--accent)}
+  .est-table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;margin-top:8px}
+  table.est{width:100%;border-collapse:collapse;font-size:12.5px;min-width:560px}
+  table.est th,table.est td{padding:7px 9px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+  table.est th{background:var(--card);color:var(--muted);font-weight:600;position:sticky;top:0}
+  table.est td:first-child,table.est th:first-child{text-align:left}
+  table.est tr.entrega td{background:rgba(14,165,160,.12);font-weight:700}
+  .est-disclaimer{font-size:11.5px;color:var(--muted);background:var(--card2);border:1px dashed var(--line);
+    border-radius:10px;padding:12px;margin-top:16px;line-height:1.5}
+  .est-cta{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+  .est-cta button{flex:1;min-width:180px;border:none;border-radius:10px;padding:13px;font-size:13.5px;
+    font-weight:700;cursor:pointer}
+  .est-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0}
+  .est-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px}
+  .est-card .k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
+  .est-card .val{font-size:19px;font-weight:800;margin-top:3px;line-height:1.15}
+  .est-card .sub2{font-size:11px;color:var(--muted);margin-top:2px}
+  .est-card.win{border-left:4px solid #0ea5a0}.est-card.win .val{color:#0ea5a0}
+  .est-card.wide{grid-column:1 / -1}
+  .est-break{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin:14px 0;font-size:13px}
+  .est-break .bk-h{font-weight:700;margin-bottom:10px}
+  .est-break .bk-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:560px){.est-break .bk-cols{grid-template-columns:1fr}}
+  .est-break .bk-t{font-size:11px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;letter-spacing:.3px}
+  .est-break .bk-row{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px dashed var(--line)}
+  .est-break .bk-row:last-child{border:none}
+  .est-break .bk-row span:last-child{text-align:right;white-space:nowrap}
+  @media print{.est-head,.est-cta,.btn-estudo{display:none}.estudo-overlay{position:static}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div>
+      <h1>Calculadora de Fluxo de Pagamento</h1>
+      <div class="sub">Monte o fluxo, ajuste tudo na hora e exporte pro cliente.</div>
+    </div>
+    <button class="themebtn" id="themeBtn">🌙 Escuro</button>
+  </div>
+
+  <div class="grid">
+    <!-- ENTRADAS -->
+    <div>
+      <div class="card">
+        <h2>Imóvel & Cliente</h2>
+        <label>Empreendimento / Unidade</label>
+        <input id="empreend" placeholder="Ex: Residencial Mar Azul - Apto 304">
+        <label>Cliente</label>
+        <input id="cliente" placeholder="Nome do cliente">
+        <label>Valor total do imóvel (R$)</label>
+        <input id="total" type="text" inputmode="numeric" placeholder="500.000">
+        <label>Metragem da unidade (m²)</label>
+        <input id="metragem" type="text" inputmode="decimal" placeholder="Ex: 75">
+        <label>Mostrar correção do saldo na mensagem?</label>
+        <div class="seg" id="corrMode">
+          <button data-m="sim" class="on">Sim</button>
+          <button data-m="nao">Não</button>
+        </div>
+        <input id="correcao" type="text" value="INCC na obra · 1% + IGP-M após habite-se" style="margin-top:8px">
+        <div id="inccMainWrap">
+          <label id="inccMainLbl" style="margin-top:10px">INCC estimado ao ano (%) — p/ projeção das parcelas</label>
+          <input id="inccMain" type="number" step="0.01" value="6.71">
+          <label style="margin-top:10px">Incluir projeção das parcelas na cópia do WhatsApp?</label>
+          <div class="seg" id="projMode">
+            <button data-m="nao" class="on">Não</button>
+            <button data-m="sim">Sim</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:18px">
+        <h2>Divisão Obra (% do valor total)</h2>
+        <div class="presets" id="presets">
+          <button data-a="50">50 / 50</button>
+          <button data-a="60">60 / 40</button>
+          <button data-a="30">30 / 70</button>
+          <button data-a="40">40 / 60</button>
+          <button data-a="70">70 / 30</button>
+        </div>
+        <div class="row">
+          <div>
+            <label>% antes da obra</label>
+            <input id="antesPct" type="number" value="60" min="0" max="100">
+          </div>
+          <div>
+            <label>% pós-obra (chaves)</label>
+            <input id="posPct" type="number" value="40" min="0" max="100" readonly>
+          </div>
+        </div>
+        <div class="hint">Antes da obra = entrada + parcelas + intercaladas. Pós-obra = valor das chaves.</div>
+      </div>
+
+      <div class="card" style="margin-top:18px">
+        <h2>Entrada</h2>
+        <div class="seg" id="entradaMode">
+          <button data-m="pct" class="on">Por %</button>
+          <button data-m="rs">Por R$</button>
+        </div>
+        <label id="entradaLbl">Entrada (% do valor total)</label>
+        <input id="entradaVal" type="text" inputmode="numeric" value="10">
+      </div>
+
+      <div class="card" style="margin-top:18px">
+        <h2>Parcelas</h2>
+        <label>Quantidade de parcelas</label>
+        <input id="nParc" type="number" value="48" min="1">
+        <label>Valor da parcela</label>
+        <div class="seg" id="parcMode">
+          <button data-m="auto" class="on">Calcular automático</button>
+          <button data-m="fixo">Definir valor</button>
+        </div>
+        <input id="parcVal" type="text" inputmode="numeric" placeholder="automático" disabled style="margin-top:8px">
+        <div class="hint" id="parcHint">Automático: divide com as intercaladas o que sobra da parte antes da obra.</div>
+      </div>
+
+      <div class="card" style="margin-top:18px">
+        <h2>Intercaladas (reforços)</h2>
+        <label>Frequência</label>
+        <select id="interFreq">
+          <option value="0">Nenhuma</option>
+          <option value="6" selected>Semestral</option>
+          <option value="12">Anual</option>
+          <option value="1">Mensal</option>
+        </select>
+        <div class="row">
+          <div>
+            <label>Quantidade</label>
+            <input id="interQtd" type="number" value="0" min="0">
+          </div>
+          <div>
+            <label>Valor de cada uma</label>
+            <div class="seg" id="interMode" style="margin-top:0">
+              <button data-m="rs">R$</button>
+              <button data-m="auto" class="on">Auto</button>
+              <button data-m="pct">%</button>
+            </div>
+          </div>
+        </div>
+        <input id="interVal" type="text" inputmode="numeric" value="0" disabled placeholder="automático" style="margin-top:8px">
+        <label>Distribuição</label>
+        <select id="interDist">
+          <option value="igual" selected>Iguais (mesmo valor)</option>
+          <option value="cresc">Progressiva (leve → pesada)</option>
+          <option value="decr">Decrescente (pesada → leve)</option>
+        </select>
+        <div class="hint" id="interHint">Automático: divide com as parcelas o que sobra da parte antes da obra.</div>
+      </div>
+    </div>
+
+    <!-- RESUMO -->
+    <div>
+      <div class="card res">
+        <h2>Resumo do Fluxo</h2>
+
+        <div class="barwrap"><i class="bar-antes" id="barA"></i><i class="bar-pos" id="barP"></i></div>
+        <div class="barleg"><span id="legA">Antes 60%</span><span id="legP">Pós 40%</span></div>
+
+        <div style="margin-top:14px">
+          <div class="line"><span class="lbl">Entrada</span><span class="val" id="oEntrada">—</span></div>
+          <div class="line"><span class="lbl" id="oParcLbl">Parcelas</span><span class="val" id="oParc">—</span></div>
+          <div class="line"><span class="lbl" id="oInterLbl">Intercaladas</span><span class="val" id="oInter">—</span></div>
+          <div class="line"><span class="lbl">Chaves (pós-obra)</span><span class="val" id="oChaves">—</span></div>
+          <div class="line"><span class="lbl">Total em parcelas</span><span class="val" id="oParcTot">—</span></div>
+          <div class="line"><span class="lbl">Total em intercaladas</span><span class="val" id="oInterTot">—</span></div>
+        </div>
+
+        <div class="total"><span>Total do fluxo</span><span class="v" id="oTotal">R$ 0</span></div>
+        <div id="m2line" style="display:none;justify-content:space-between;font-size:13px;color:var(--muted);padding:9px 2px 0">
+          <span>Valor do m²</span><span id="oM2" style="font-weight:700;color:var(--txt)"></span>
+        </div>
+        <div id="badge" class="badge ok">Fecha 100% ✓</div>
+
+        <div class="actions">
+          <button class="btn-wa" id="btnWa">Copiar p/ WhatsApp</button>
+          <button class="btn-print" id="btnPrint">Imprimir / PDF</button>
+          <button class="btn-clear" id="btnClear">Limpar</button>
+        </div>
+        <button class="btn-estudo" id="btnEstudo">📊 Estudo de Investimento</button>
+      </div>
+
+      <div class="card" style="margin-top:18px">
+        <div class="tabs">
+          <button class="tab on" id="tabCron">Cronograma</button>
+          <button class="tab" id="tabMsg">Mensagem WhatsApp</button>
+        </div>
+        <div id="panelCron">
+          <div class="schedule">
+            <table>
+              <thead><tr><th>#</th><th>Etapa</th><th class="r">Valor</th></tr></thead>
+              <tbody id="schedBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div id="panelMsg" style="display:none">
+          <pre id="waPreview" class="wa-preview"></pre>
+        </div>
+      </div>
+
+      <div class="card" id="projCard" style="margin-top:18px;display:none">
+        <h2>📈 Projeção das parcelas <small style="font-weight:600;color:var(--muted)">(corrigidas pelo INCC)</small></h2>
+        <div class="schedule">
+          <table>
+            <thead><tr><th>Parcela</th><th class="r">Valor estimado</th></tr></thead>
+            <tbody id="projBody"></tbody>
+          </table>
+        </div>
+        <div class="hint" id="projHint"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- ===== ESTUDO DE INVESTIMENTO ===== -->
+<div class="estudo-overlay" id="estudoView">
+  <div class="est-head">
+    <button class="est-back" id="estBack">← Voltar</button>
+    <h2>📊 Estudo de Investimento</h2>
+  </div>
+  <div class="est-wrap">
+    <div class="seg-perfil" id="perfilSeg">
+      <button data-p="capital" class="on">💰 Tenho o capital (CDB)</button>
+      <button data-p="renda">📅 Vou comprometer renda</button>
+    </div>
+
+    <div class="card">
+      <h2>Premissas (edite se o cliente trouxer outro dado)</h2>
+      <div class="prem-grid">
+        <div id="pCapitalBox"><label>Capital aplicado no CDB (R$)</label><input id="pCapital" type="text" inputmode="numeric" placeholder="ex: valor da unidade"></div>
+        <div id="pRendaBox" style="display:none"><label>Renda mensal do cliente (R$)</label><input id="pRenda" type="text" inputmode="numeric" placeholder="ex: 15.000"></div>
+        <div><label>% do CDI (rendimento)</label><input id="pPctCdi" type="number" value="100"></div>
+        <div><label>CDI ao ano (%)</label><input id="pCdi" type="number" step="0.01" value="14.78"></div>
+        <div><label>INCC ao ano (%) — obra</label><input id="pIncc" type="number" step="0.01" value="6.71"></div>
+        <div><label>IGP-M ao ano (%) — pós-chaves</label><input id="pIgpm" type="number" step="0.01" value="1.95"></div>
+        <div><label>Meses até a entrega (habite-se)</label><input id="pMesesEntrega" type="number" value="36"></div>
+        <div><label>Juros pós-obra (% a.m.)</label><input id="pJurosPos" type="number" step="0.01" value="1"></div>
+        <div><label>Prazo do financiamento (meses)</label><input id="pPrazoFin" type="number" value="120"></div>
+        <div><label>Receita cheia/mês (diária × 30)</label><input id="pAluguel" type="text" inputmode="numeric" value="7.500"></div>
+        <div><label>Ocupação estimada (%)</label><input id="pOcup" type="number" value="70"></div>
+        <div><label>Administração (% da receita)</label><input id="pAdm" type="number" value="20"></div>
+        <div><label>Plataforma / OTA (% da receita)</label><input id="pPlat" type="number" value="10"></div>
+        <div><label>Custos fixos (R$/mês) — cond., IPTU</label><input id="pCustos" type="text" inputmode="numeric" value="600"></div>
+        <div><label>Valorização do imóvel (% a.a.)</label><input id="pValoriz" type="number" step="0.1" value="10"></div>
+        <div><label>Horizonte de análise (anos após entrega)</label><input id="pHorizonte" type="number" value="5"></div>
+        <div><label>IR sobre aluguel (%)</label><input id="pIrAluguel" type="number" step="0.1" value="15"></div>
+        <div><label>IR do CDB sobre o ganho (%)</label><input id="pIrCdb" type="number" step="0.1" value="15"></div>
+      </div>
+      <div class="hint">O aluguel líquido = (receita × ocupação) − custos. Tudo editável e ilustrativo.</div>
+    </div>
+
+    <div class="est-cards" id="estCards"></div>
+    <div class="est-break" id="estBreak"></div>
+    <div class="est-verdict" id="estVerdict">Preencha o fluxo na calculadora e as premissas acima.</div>
+
+    <h2 style="font-size:14px;color:var(--muted);margin:16px 0 4px">Linha do tempo (mês a mês)</h2>
+    <div class="est-table-wrap"><table class="est"><thead id="estThead"></thead><tbody id="estTbody"></tbody></table></div>
+
+    <div class="est-disclaimer">
+      ⚠️ <b>Simulação ilustrativa.</b> Valores estimados com base nas premissas informadas. CDB já líquido de IR;
+      aluguel líquido de administração, plataforma, custos e IR. Não constituem garantia de rentabilidade,
+      ocupação ou valorização. Índices (CDI, INCC, IGP-M) e condições de aluguel podem variar. Não é oferta nem recomendação de investimento.
+    </div>
+
+    <div class="est-cta">
+      <button class="btn-wa" id="estCopiar">Copiar fluxo + estudo p/ WhatsApp</button>
+      <button class="btn-print" id="estPrint">Imprimir / PDF</button>
+    </div>
+  </div>
+</div>
+
+<div class="stickybar" id="stickyBar">
+  <span class="sb-total">Total do fluxo: <b id="sbTotal">R$ 0</b></span>
+  <span class="sb-badge ok" id="sbBadge">Preencha o valor do imóvel</span>
+</div>
+<div class="toast" id="toast">Copiado!</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const BRL = n => "R$ " + (Math.round(n)).toLocaleString("pt-BR");
+const BRL2 = n => (Math.round(n)).toLocaleString("pt-BR");
+
+// parse number from BR-formatted string ("500.000,50" -> 500000.5)
+function num(v){
+  if(v==null) return 0;
+  let s = String(v).trim().replace(/\s|R\$/g,"");
+  if(s==="") return 0;
+  // remove thousand dots, comma -> dot
+  s = s.replace(/\./g,"").replace(",",".");
+  const n = parseFloat(s);
+  return isNaN(n)?0:n;
+}
+
+// formata campo em R$ com separador de milhar enquanto digita (500000 -> 500.000)
+function fmtMoney(el){
+  let d = el.value.replace(/\D/g,"");
+  d = d.replace(/^0+(?=\d)/,"");
+  el.value = d==="" ? "" : (+d).toLocaleString("pt-BR");
+}
+
+// distribui um total entre n intercaladas; soma sempre = total (último absorve arredondamento)
+function distValues(total, n, dist){
+  if(n<=0) return [];
+  const avg = total/n;
+  let raw;
+  if(dist==="igual" || n===1){
+    raw = Array(n).fill(avg);
+  } else {
+    const spread=0.5, mid=(n-1)/2;
+    raw = [];
+    for(let i=0;i<n;i++) raw.push(avg*(1 + spread*((i-mid)/mid)));
+    if(dist==="decr") raw.reverse();
+  }
+  let arr = raw.map(v=>Math.round(v));
+  arr[n-1] = Math.round(total - arr.slice(0,n-1).reduce((a,b)=>a+b,0));
+  return arr;
+}
+
+// parse decimal simples (75 / 75,5 / 75.5)
+function numDec(v){ const n=parseFloat(String(v).replace(/\s/g,"").replace(",",".")); return isNaN(n)?0:n; }
+
+let entradaMode="pct", parcMode="auto", interMode="auto", corrOn=true, projOn=false;
+
+// ---- segmented toggles ----
+function bindSeg(elId, cb){
+  document.querySelectorAll("#"+elId+" button").forEach(b=>{
+    b.onclick=()=>{
+      document.querySelectorAll("#"+elId+" button").forEach(x=>x.classList.remove("on"));
+      b.classList.add("on"); cb(b.dataset.m); calc();
+    };
+  });
+}
+function setSeg(elId,m){
+  document.querySelectorAll("#"+elId+" button").forEach(x=>x.classList.toggle("on",x.dataset.m===m));
+}
+bindSeg("entradaMode",m=>{entradaMode=m;
+  $("entradaLbl").textContent = m==="pct" ? "Entrada (% do valor total)" : "Entrada (R$)";
+  $("entradaVal").value = m==="pct" ? "10" : "";
+});
+bindSeg("parcMode",m=>{parcMode=m;
+  $("parcVal").disabled = (m==="auto");
+  $("parcVal").placeholder = m==="auto" ? "automático" : "";
+  $("parcHint").textContent = m==="auto"
+    ? "Automático: divide com as intercaladas o que sobra da parte antes da obra."
+    : "Você definiu o valor da parcela; o restante vai pras intercaladas.";
+});
+bindSeg("interMode",m=>{interMode=m;
+  $("interVal").disabled = (m==="auto");
+  $("interVal").placeholder = m==="auto" ? "automático" : "";
+  $("interHint").textContent = m==="auto"
+    ? "Automático: divide com as parcelas o que sobra da parte antes da obra."
+    : "Você definiu o valor das intercaladas; o restante vai pras parcelas.";
+});
+bindSeg("corrMode",m=>{ corrOn=(m==="sim"); $("correcao").style.display=corrOn?"":"none"; $("inccMainWrap").style.display=corrOn?"":"none"; calc(); });
+bindSeg("projMode",m=>{ projOn=(m==="sim"); calc(); });
+
+// ---- presets divisão ----
+document.querySelectorAll("#presets button").forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll("#presets button").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on");
+    $("antesPct").value=b.dataset.a; $("posPct").value=100-(+b.dataset.a); calc();
+  };
+});
+$("antesPct").addEventListener("input",()=>{
+  let a=Math.min(100,Math.max(0,+$("antesPct").value||0));
+  $("posPct").value=100-a;
+  document.querySelectorAll("#presets button").forEach(x=>x.classList.remove("on"));
+});
+
+// auto-suggest intercaladas qty from prazo + freq
+let interQtdTouched=false;
+$("interQtd").addEventListener("input",()=>interQtdTouched=true);
+function suggestInter(){
+  const f=+$("interFreq").value, N=+$("nParc").value||0;
+  if(f===0){$("interQtd").value=0; return;}
+  if(!interQtdTouched){ $("interQtd").value = Math.floor(N/f); }
+}
+$("interFreq").addEventListener("change",()=>{interQtdTouched=false;suggestInter();calc();});
+$("interDist").addEventListener("change",calc);
+$("nParc").addEventListener("input",()=>{if(!interQtdTouched)suggestInter();});
+
+// formatação de R$ ao digitar (só nos campos que estão em reais)
+$("total").addEventListener("input",()=>fmtMoney($("total")));
+$("parcVal").addEventListener("input",()=>fmtMoney($("parcVal")));
+$("entradaVal").addEventListener("input",()=>{ if(entradaMode==="rs") fmtMoney($("entradaVal")); });
+$("interVal").addEventListener("input",()=>{ if(interMode==="rs") fmtMoney($("interVal")); });
+
+// recalc on any input
+["empreend","cliente","total","metragem","correcao","inccMain","antesPct","entradaVal","nParc","parcVal","interQtd","interVal"]
+  .forEach(id=>$(id).addEventListener("input",calc));
+
+let state={};
+function calc(){
+  const T=num($("total").value);
+  let antesPct=Math.min(100,Math.max(0,+$("antesPct").value||0));
+  const posPct=100-antesPct;
+  const antesBudget=T*antesPct/100;
+  const chaves=T*posPct/100;
+
+  // entrada (sempre input direto)
+  let entrada = entradaMode==="pct" ? T*num($("entradaVal").value)/100 : num($("entradaVal").value);
+
+  const interQtd=Math.max(0,+$("interQtd").value||0);
+  const N=Math.max(1,+$("nParc").value||1);
+  const antesRemaining = antesBudget - entrada; // o que sobra p/ parcelas + intercaladas
+  const pAuto = parcMode==="auto", iAuto = interMode==="auto";
+  let interUnit=0, interTotal=0, parcUnit=0, parcTotal=0;
+
+  if(pAuto && iAuto){
+    // divide igualmente o que sobra entre parcelas e intercaladas (intercaladas só se houver qtd)
+    if(interQtd>0){ parcTotal = antesRemaining/2; interTotal = antesRemaining/2; }
+    else { parcTotal = antesRemaining; interTotal = 0; }
+    parcUnit = parcTotal/N;
+    interUnit = interQtd>0 ? interTotal/interQtd : 0;
+  } else if(pAuto && !iAuto){
+    // intercaladas definidas -> parcelas absorvem o resto
+    interUnit = interMode==="pct" ? T*num($("interVal").value)/100 : num($("interVal").value);
+    interTotal = interQtd*interUnit;
+    parcTotal = antesRemaining - interTotal;
+    parcUnit = parcTotal/N;
+  } else if(!pAuto && iAuto){
+    // parcela definida -> intercaladas absorvem o resto
+    parcUnit = num($("parcVal").value);
+    parcTotal = parcUnit*N;
+    interTotal = antesRemaining - parcTotal;
+    interUnit = interQtd>0 ? interTotal/interQtd : 0;
+  } else {
+    // ambos definidos manualmente
+    parcUnit = num($("parcVal").value);
+    parcTotal = parcUnit*N;
+    interUnit = interMode==="pct" ? T*num($("interVal").value)/100 : num($("interVal").value);
+    interTotal = interQtd*interUnit;
+  }
+
+  const fluxoTotal = entrada + parcTotal + interTotal + chaves;
+  const diff = T - fluxoTotal;
+
+  // valor do m²
+  const metragem = numDec($("metragem").value);
+  const correcao = $("correcao").value.trim();
+  const valorM2 = (metragem>0 && T>0) ? T/metragem : 0;
+  const m2line=$("m2line");
+  if(valorM2>0){ m2line.style.display="flex"; $("oM2").textContent=BRL(valorM2)+" / m²"; }
+  else { m2line.style.display="none"; }
+
+  // ---- render ----
+  $("legA").textContent="Antes "+antesPct+"%";
+  $("legP").textContent="Pós "+posPct+"%";
+  $("barA").style.width=antesPct+"%";
+  $("barP").style.width=posPct+"%";
+
+  $("oEntrada").innerHTML = BRL(entrada) + (T>0?'<small>'+(entrada/T*100||0).toFixed(1)+'% do total</small>':'');
+  $("oParcLbl").textContent = N+"x parcelas";
+  $("oParc").innerHTML = BRL(parcUnit);
+  const interDist=$("interDist").value;
+  const interArr=distValues(interTotal,interQtd,interDist);
+  const distNome = interDist==="cresc"?"progressiva":interDist==="decr"?"decrescente":"";
+  $("oInterLbl").textContent = interQtd>0 ? interQtd+"x intercaladas ("+freqName()+(distNome?", "+distNome:"")+")" : "Intercaladas";
+  if(interQtd<=0){ $("oInter").innerHTML="—"; }
+  else if(interDist==="igual"){ $("oInter").innerHTML = BRL(interArr[0]||0); }
+  else { const lo=Math.min(...interArr),hi=Math.max(...interArr);
+    $("oInter").innerHTML = "de "+BRL(lo)+" a "+BRL(hi); }
+  $("oChaves").innerHTML = BRL(chaves)+(T>0?'<small>'+posPct+'% do total</small>':'');
+  $("oParcTot").textContent = (T>0) ? BRL(parcTotal) : "—";
+  $("oInterTot").textContent = (T>0 && interQtd>0) ? BRL(interTotal) : "—";
+  $("oTotal").textContent = BRL(fluxoTotal);
+
+  const badge=$("badge");
+  if(T<=0){ badge.className="badge ok"; badge.textContent="Preencha o valor do imóvel"; }
+  else if(antesRemaining<-0.5){ badge.className="badge bad"; badge.textContent="⚠ Entrada maior que a parte antes da obra"; }
+  else if(parcTotal<-0.5){ badge.className="badge bad"; badge.textContent="⚠ Intercaladas passam do limite antes da obra"; }
+  else if(interTotal<-0.5){ badge.className="badge bad"; badge.textContent="⚠ Parcelas passam do limite antes da obra"; }
+  else if(!pAuto && !iAuto && Math.abs(diff)>=1){
+    badge.className="badge bad";
+    badge.textContent = diff>0 ? "Falta "+BRL(diff)+" pra fechar" : "Passou "+BRL(-diff);
+  }
+  else { badge.className="badge ok"; badge.textContent="Fecha 100% ✓"; }
+
+  // barra fixa inferior
+  $("sbTotal").textContent = BRL(fluxoTotal);
+  $("sbBadge").className = "sb-badge " + (badge.classList.contains("bad") ? "bad" : "ok");
+  $("sbBadge").textContent = badge.textContent;
+
+  buildSchedule({T,entrada,N,parcUnit,interQtd,interArr,interDist,chaves});
+
+  // ---- projeção das parcelas corrigidas pelo INCC ----
+  const inccMain = +$("inccMain").value || 0;
+  const projRows = projParcelas(parcUnit, N, inccMain);
+  const showProj = corrOn && T>0 && N>0 && parcUnit>0 && inccMain>0;
+  const pb=$("projBody"); pb.innerHTML="";
+  if(showProj){
+    projRows.forEach(r=>{
+      const tr=document.createElement("tr");
+      tr.innerHTML=`<td>${r.k}ª</td><td class="r">${BRL(r.v)}</td>`;
+      pb.appendChild(tr);
+    });
+    $("projHint").textContent = "Estimativa da parcela corrigida pelo INCC ("+inccMain+"% a.a.) mês a mês durante a obra. Valores aproximados — o índice pode variar.";
+  }
+  $("projCard").style.display = showProj ? "" : "none";
+
+  state={T,antesPct,posPct,entrada,N,parcUnit,parcTotal,interQtd,interArr,interDist,interTotal,chaves,fluxoTotal,metragem,valorM2,correcao,corrOn,projOn,inccMain,projRows:showProj?projRows:[]};
+
+  // atualiza o preview da mensagem se a aba estiver aberta
+  const pm=$("panelMsg");
+  if(pm && pm.style.display!=="none" && typeof waText==="function") $("waPreview").textContent=waText();
+}
+
+function freqName(){
+  const f=+$("interFreq").value;
+  return f===1?"mensal":f===6?"semestral":f===12?"anual":"";
+}
+
+// marcos da projeção: 1ª, 6ª, 12ª, 18ª ... e sempre a última (Nª)
+function projParcelas(parcUnit, N, inccAnnual){
+  if(N<1 || parcUnit<=0 || inccAnnual<=0) return [];
+  const inccM = Math.pow(1+inccAnnual/100, 1/12) - 1;
+  const marks = [1];
+  for(let k=6; k<N; k+=6) marks.push(k);
+  if(N>1 && marks[marks.length-1] !== N) marks.push(N);
+  return marks.map(k => ({ k, v: parcUnit*Math.pow(1+inccM, k-1) }));
+}
+
+function buildSchedule(d){
+  const tb=$("schedBody"); tb.innerHTML="";
+  let i=1;
+  const add=(etapa,val)=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${i++}</td><td>${etapa}</td><td class="r">${BRL(val)}</td>`;
+    tb.appendChild(tr);
+  };
+  if(d.T<=0) return;
+  add("Entrada / Ato", d.entrada);
+  add(d.N+"x parcelas mensais de "+BRL(d.parcUnit), d.parcUnit);
+  if(d.interQtd>0){
+    if(d.interDist==="igual"){
+      add(d.interQtd+"x intercaladas "+freqName()+" de "+BRL(d.interArr[0]||0), d.interArr[0]||0);
+    } else {
+      d.interArr.forEach((v,i)=> add((i+1)+"ª intercalada "+freqName(), v));
+    }
+  }
+  add("Chaves (na entrega)", d.chaves);
+}
+
+// ---- monta o texto do WhatsApp (usado no preview e na cópia) ----
+function waText(){
+  const s=state;
+  if(!s||!s.T) return "Preencha o valor do imóvel para gerar a mensagem.";
+  const emp=$("empreend").value, cli=$("cliente").value;
+  let t="";
+  t+="*PROPOSTA DE FLUXO DE PAGAMENTO*\n";
+  t+="-----------------------------\n";
+  if(emp) t+="🏢 "+emp+"\n";
+  if(cli) t+="👤 "+cli+"\n";
+  t+="💰 Valor do imóvel: *"+BRL(s.T)+"*\n";
+  if(s.metragem>0){ t+="📐 Metragem: "+s.metragem+" m²\n"; t+="📊 Valor do m²: "+BRL(s.valorM2)+"\n"; }
+  t+="🏗 Divisão: "+s.antesPct+"% antes da obra / "+s.posPct+"% chaves\n";
+  t+="-----------------------------\n";
+  t+="▪️ Entrada: *"+BRL(s.entrada)+"* ("+(s.entrada/s.T*100).toFixed(1)+"%)\n";
+  t+="▪️ "+s.N+"x parcelas de *"+BRL(s.parcUnit)+"* (total "+BRL(s.parcTotal)+")\n";
+  if(s.interQtd>0){
+    if(s.interDist==="igual"){
+      t+="▪️ "+s.interQtd+"x intercaladas "+freqName()+" de *"+BRL(s.interArr[0]||0)+"* (total "+BRL(s.interTotal)+")\n";
+    } else {
+      t+="▪️ "+s.interQtd+"x intercaladas "+freqName()+" ("+(s.interDist==="cresc"?"progressiva":"decrescente")+", total "+BRL(s.interTotal)+"):\n";
+      s.interArr.forEach((v,i)=> t+="   "+(i+1)+"ª: *"+BRL(v)+"*\n");
+    }
+  }
+  t+="▪️ Chaves: *"+BRL(s.chaves)+"*\n";
+  t+="-----------------------------\n";
+  t+="Total: *"+BRL(s.fluxoTotal)+"*\n";
+  if(s.corrOn && s.correcao) t+="\n📈 Correção do saldo: "+s.correcao+"\n";
+  if(s.projOn && s.corrOn && s.projRows && s.projRows.length){
+    t+="\n📈 *Projeção das parcelas (INCC "+s.inccMain+"% a.a.)*\n";
+    s.projRows.forEach(r=> t+="   "+r.k+"ª parcela: "+BRL(r.v)+"\n");
+    t+="_Valores estimados; a parcela é corrigida pelo INCC durante a obra._\n";
+  }
+  return t;
+}
+
+// ---- export ----
+$("btnWa").onclick=()=>{
+  if(!state||!state.T){toast("Preencha o valor do imóvel");return;}
+  const t=waText();
+  navigator.clipboard.writeText(t).then(()=>toast("Copiado pro WhatsApp!"),()=>{
+    const ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);
+    ta.select();document.execCommand("copy");ta.remove();toast("Copiado!");
+  });
+};
+$("btnPrint").onclick=()=>window.print();
+
+// ---- abas Cronograma / Mensagem ----
+function setTab(t){
+  const c = t==="cron";
+  $("tabCron").classList.toggle("on",c);
+  $("tabMsg").classList.toggle("on",!c);
+  $("panelCron").style.display = c ? "" : "none";
+  $("panelMsg").style.display  = c ? "none" : "";
+  if(!c) $("waPreview").textContent = waText();
+}
+$("tabCron").onclick=()=>setTab("cron");
+$("tabMsg").onclick=()=>setTab("msg");
+
+// ---- tema claro/escuro ----
+$("themeBtn").onclick=()=>{
+  const dark=document.body.classList.toggle("dark");
+  $("themeBtn").textContent = dark ? "☀️ Claro" : "🌙 Escuro";
+};
+
+$("btnClear").onclick=()=>{
+  // campos de texto
+  $("empreend").value=""; $("cliente").value=""; $("total").value=""; $("metragem").value="";
+  $("correcao").value="INCC na obra · 1% + IGP-M após habite-se";
+  corrOn=true; setSeg("corrMode","sim"); $("correcao").style.display=""; $("inccMainWrap").style.display="";
+  $("inccMain").value="6.71"; projOn=false; setSeg("projMode","nao");
+  // divisão volta pro padrão 60/40
+  $("antesPct").value=60; $("posPct").value=40;
+  document.querySelectorAll("#presets button").forEach(x=>x.classList.remove("on"));
+  document.querySelector('#presets button[data-a="60"]').classList.add("on");
+  // entrada
+  entradaMode="pct"; setSeg("entradaMode","pct");
+  $("entradaLbl").textContent="Entrada (% do valor total)"; $("entradaVal").value="10";
+  // parcelas
+  $("nParc").value=48; parcMode="auto"; setSeg("parcMode","auto");
+  $("parcVal").value=""; $("parcVal").disabled=true; $("parcVal").placeholder="automático";
+  $("parcHint").textContent="Automático: divide com as intercaladas o que sobra da parte antes da obra.";
+  // intercaladas
+  $("interFreq").value="6"; interMode="auto"; setSeg("interMode","auto");
+  $("interDist").value="igual";
+  $("interVal").value="0"; $("interVal").disabled=true; $("interVal").placeholder="automático";
+  $("interHint").textContent="Automático: divide com as parcelas o que sobra da parte antes da obra.";
+  interQtdTouched=false; suggestInter();
+  calc();
+  toast("Limpo! Pode fazer o próximo.");
+};
+
+function toast(msg){const t=$("toast");t.textContent=msg;t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"),1800);}
+
+// ===== ESTUDO DE INVESTIMENTO =====
+let perfil="capital", estudoResumo=null;
+function $v(id){return $(id).value;}
+function pmt(P,r,n){ if(r<=0) return P/n; return P*r/(1-Math.pow(1+r,-n)); }
+
+function openEstudo(){
+  if(!state||!state.T){ toast("Preencha o valor do imóvel primeiro"); return; }
+  if(!(+$("pMesesEntrega").value>0)) $("pMesesEntrega").value=state.N;
+  if(!$("pCapital").value) $("pCapital").value=Math.round(state.T).toLocaleString("pt-BR");
+  $("estudoView").classList.add("show"); document.body.style.overflow="hidden"; buildEstudo();
+}
+function closeEstudo(){ $("estudoView").classList.remove("show"); document.body.style.overflow=""; }
+
+function buildEstudo(){
+  if(!state||!state.T) return;
+  const s=state;
+  const cdiM=Math.pow(1+(+$v("pCdi")||0)/100*((+$v("pPctCdi")||0)/100),1/12)-1;
+  const inccM=Math.pow(1+(+$v("pIncc")||0)/100,1/12)-1;
+  const igpmM=Math.pow(1+(+$v("pIgpm")||0)/100,1/12)-1;
+  const valorizA=(+$v("pValoriz")||0)/100, valorizM=Math.pow(1+valorizA,1/12)-1;
+  const anos=Math.max(1,+$v("pHorizonte")||5);
+  const M=Math.max(1,+$v("pMesesEntrega")||s.N);
+  const jurosPos=(+$v("pJurosPos")||0)/100, effPos=jurosPos+igpmM;
+  const prazoFin=Math.max(1,+$v("pPrazoFin")||120);
+  const adm=(+$v("pAdm")||0)/100, plat=(+$v("pPlat")||0)/100;
+  const irAluguel=(+$v("pIrAluguel")||0)/100, irCdb=(+$v("pIrCdb")||0)/100;
+  const receita=num($v("pAluguel"))*((+$v("pOcup")||0)/100);
+  const aluguelLiq=receita*(1-adm-plat-irAluguel)-num($v("pCustos"));
+  const capital0=num($v("pCapital")), renda=num($v("pRenda")), cap=perfil==="capital";
+  const freq=+$("interFreq").value||0, reforcoMes={};
+  if(freq>0 && s.interArr) s.interArr.forEach((v,i)=>{ const m=(i+1)*freq; if(m<=M) reforcoMes[m]=(reforcoMes[m]||0)+v; });
+  const prestacao=pmt(s.chaves, effPos, prazoFin);
+  const postN=anos*12, totalMonths=M+postN;
+
+  const rows=[];
+  let saldoCap=capital0-s.entrada, doBolso=s.entrada, maxComprom=renda>0?s.entrada/renda:0;
+  let saldoFin=0, rendaAcum=0, imovelVal=s.T, equilibrio=null;
+  rows.push({lbl:"Entrada",mes:0,saida:s.entrada,entra:0,bolso:s.entrada,saldo:saldoCap,compr:renda>0?s.entrada/renda:0});
+  for(let k=1;k<=M;k++){
+    const corr=Math.pow(1+inccM,k-1);
+    const saida=s.parcUnit*corr+(reforcoMes[k]||0)*corr;
+    imovelVal*=(1+valorizM);
+    let entra=0,bolso=saida,compr=0;
+    if(cap){ entra=saldoCap*cdiM; saldoCap=saldoCap+entra-saida; bolso=saida-entra; doBolso+=Math.max(0,bolso); }
+    else { doBolso+=saida; if(renda>0){ compr=saida/renda; if(compr>maxComprom)maxComprom=compr; } }
+    rows.push({lbl:"Obra",mes:k,saida,entra,bolso,saldo:saldoCap,compr});
+  }
+  saldoFin=s.chaves;
+  for(let j=1;j<=postN;j++){
+    const mes=M+j; imovelVal*=(1+valorizM);
+    const juros=saldoFin*effPos; saldoFin=Math.max(0,saldoFin-(prestacao-juros));
+    let entra,saida=prestacao,bolso,compr=0;
+    if(cap){ const rend=saldoCap*cdiM; saldoCap=saldoCap+rend+aluguelLiq-saida; entra=aluguelLiq+rend; bolso=saida-entra; }
+    else { rendaAcum+=aluguelLiq-saida; bolso=saida-aluguelLiq; if(renda>0) compr=Math.max(0,bolso)/renda; doBolso+=Math.max(0,bolso); }
+    if(j<=24) rows.push({lbl:j===1?"Entrega/Financ.":"Pós-chaves",mes,saida,entra,bolso,saldo:saldoCap,compr,entrega:j===1});
+    if(equilibrio===null && aluguelLiq>=prestacao && prestacao>0) equilibrio=mes;
+  }
+
+  const patImovel = cap ? (imovelVal+saldoCap-saldoFin) : (imovelVal+Math.max(0,rendaAcum)-saldoFin);
+  const baseCDB = cap ? capital0 : doBolso;
+  const potCDB = cap ? capital0*Math.pow(1+cdiM,totalMonths) : doBolso*Math.pow(1+cdiM,totalMonths/2);
+  const irCdbVal = Math.max(0,(potCDB-baseCDB))*irCdb;
+  const patCDB = potCDB - irCdbVal;
+  const pctBolso = s.T>0 ? doBolso/s.T*100 : 0;
+  const retorno = doBolso>0 ? (patImovel-doBolso)/doBolso*100 : 0;
+  const dif=patImovel-patCDB;
+
+  $("estThead").innerHTML="<tr><th>Mês</th><th>Saída</th><th>"+(cap?"Rend.+Aluguel":"Aluguel líq")+"</th><th>Do bolso</th><th>"+(cap?"Saldo CDB":"% Renda")+"</th></tr>";
+  $("estTbody").innerHTML=rows.map(r=>{
+    const last=cap?BRL(r.saldo):(r.compr?(r.compr*100).toFixed(0)+"%":"—");
+    const b=r.bolso>0.5?BRL(r.bolso):(r.bolso<-0.5?"−"+BRL(-r.bolso):"R$ 0");
+    return "<tr class='"+(r.entrega?"entrega":"")+"'><td>"+r.lbl+(r.mes?" ("+r.mes+")":"")+"</td><td>"+BRL(r.saida)+"</td><td>"+(Math.abs(r.entra)>0.5?BRL(r.entra):"—")+"</td><td>"+b+"</td><td>"+last+"</td></tr>";
+  }).join("");
+
+  $("estCards").innerHTML=
+    estCard("Valor do imóvel hoje",BRL(s.T),"")+
+    estCard("Do seu bolso (estim.)",BRL(doBolso),pctBolso.toFixed(0)+"% do valor do imóvel")+
+    estCard("Renda líquida/mês",BRL(aluguelLiq),receita>0?"após adm, plataforma e custos":"informe o aluguel")+
+    estCard("Imóvel valorizado",BRL(imovelVal),"premissa: "+(valorizA*100).toFixed(1)+"%/ano")+
+    estCard("Patrimônio no imóvel ("+anos+" anos)",BRL(patImovel),"imóvel + renda − saldo",true)+
+    estCard("Se ficasse no CDB",BRL(patCDB),"só caixa, sem imóvel")+
+    estCard(dif>=0?"Vantagem do imóvel":"Diferença",(dif>=0?"+":"−")+BRL(Math.abs(dif)),"a mais em "+anos+" anos",dif>=0,true);
+
+  const bk=(k,v)=>"<div class='bk-row'><span>"+k+"</span><span>"+v+"</span></div>";
+  $("estBreak").innerHTML=
+    "<div class='bk-h'>🧮 Como o estudo chega nesses números</div><div class='bk-cols'>"+
+    "<div><div class='bk-t'>No imóvel · em "+anos+" anos</div>"+
+      bk("Imóvel valorizado",BRL(imovelVal))+
+      (cap? bk("Caixa acumulado (capital + rendimento + aluguéis − parcelas)",BRL(saldoCap))
+          : bk("Renda líquida acumulada",BRL(Math.max(0,rendaAcum))))+
+      bk("(−) Saldo do financiamento","−"+BRL(saldoFin))+
+      bk("<b>= Patrimônio</b>","<b>"+BRL(patImovel)+"</b>")+
+    "</div>"+
+    "<div><div class='bk-t'>No CDB · mesmo valor</div>"+
+      bk("Aplicado",BRL(baseCDB))+
+      bk("Rendendo "+(cdiM*100).toFixed(2)+"%/mês ("+totalMonths+" meses)",BRL(potCDB))+
+      bk("(−) IR "+(irCdb*100).toFixed(0)+"% sobre o ganho","−"+BRL(irCdbVal))+
+      bk("<b>= Patrimônio líquido</b>","<b>"+BRL(patCDB)+"</b>")+
+    "</div></div>"+
+    "<div class='bk-t' style='margin-top:10px'>Obs.: aluguel já líquido de administração, plataforma, custos e IR ("+(irAluguel*100).toFixed(0)+"%). CDB líquido de IR sobre o ganho. A valorização não é tributada enquanto o imóvel não é vendido (buy-and-hold).</div>";
+
+  $("estVerdict").innerHTML = cap
+    ? "💰 Aplicando "+BRL(capital0)+" no CDB, o rendimento vai pagando o fluxo — seu desembolso real do bolso na obra é ~<b>"+BRL(doBolso)+"</b>. Quando a obra fica pronta, entram a <b>renda de aluguel</b> e a <b>valorização</b>, e o imóvel <b>abre distância</b> do CDB: em "+anos+" anos, <b>"+BRL(patImovel)+"</b> no imóvel vs <b>"+BRL(patCDB)+"</b> só no CDB."
+    : "📅 Comprometimento máximo de <b>"+(maxComprom*100).toFixed(0)+"%</b> da renda. Você desembolsa ~<b>"+BRL(doBolso)+"</b> e forma patrimônio de <b>"+BRL(patImovel)+"</b> em "+anos+" anos — retorno estimado de <b>"+retorno.toFixed(0)+"%</b> sobre o investido.";
+
+  estudoResumo={cap,capital0,doBolso,aluguelLiq,maxComprom,renda,anos,imovelVal,patImovel,patCDB,dif,pctBolso,retorno};
+}
+function estCard(k,v,sub,win,wide){ return "<div class='est-card"+(win?" win":"")+(wide?" wide":"")+"'><div class='k'>"+k+"</div><div class='val'>"+v+"</div>"+(sub?"<div class='sub2'>"+sub+"</div>":"")+"</div>"; }
+
+function estudoText(){
+  let t=waText();
+  if(estudoResumo){
+    const e=estudoResumo;
+    t+="\n————————————\n📊 *ESTUDO DE INVESTIMENTO*\n";
+    t+="Do seu bolso (estim.): *"+BRL(e.doBolso)+"* ("+e.pctBolso.toFixed(0)+"% do imóvel)\n";
+    t+="Renda líquida/mês (após entrega): *"+BRL(e.aluguelLiq)+"*\n";
+    t+="Imóvel em "+e.anos+" anos: *"+BRL(e.imovelVal)+"*\n";
+    t+="Patrimônio no imóvel: *"+BRL(e.patImovel)+"*\n";
+    t+="Se ficasse no CDB: *"+BRL(e.patCDB)+"*\n";
+    if(e.dif>=0) t+="➡️ Vantagem do imóvel: *+"+BRL(e.dif)+"* em "+e.anos+" anos\n";
+    if(!e.cap) t+="Retorno estim. sobre o investido: *"+e.retorno.toFixed(0)+"%*\n";
+    t+="\n_Simulação ilustrativa. CDB e aluguel já líquidos de IR. Premissas informadas (CDI, valorização, ocupação). Estimativas, não garantia._";
+  }
+  return t;
+}
+
+$("btnEstudo").onclick=openEstudo;
+$("estBack").onclick=closeEstudo;
+document.querySelectorAll("#perfilSeg button").forEach(b=>{ b.onclick=()=>{
+  document.querySelectorAll("#perfilSeg button").forEach(x=>x.classList.remove("on")); b.classList.add("on");
+  perfil=b.dataset.p; $("pCapitalBox").style.display=perfil==="capital"?"":"none"; $("pRendaBox").style.display=perfil==="renda"?"":"none"; buildEstudo();
+};});
+["pCapital","pRenda","pPctCdi","pCdi","pIncc","pIgpm","pMesesEntrega","pJurosPos","pPrazoFin","pAluguel","pOcup","pAdm","pPlat","pCustos","pValoriz","pHorizonte","pIrAluguel","pIrCdb"].forEach(id=>$(id).addEventListener("input",buildEstudo));
+$("estCopiar").onclick=()=>{ const t=estudoText(); navigator.clipboard.writeText(t).then(()=>toast("Fluxo + estudo copiado!"),()=>{const ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand("copy");ta.remove();toast("Copiado!");}); };
+$("estPrint").onclick=()=>window.print();
+
+// init
+suggestInter(); calc();
+
+// PWA - registra o service worker (funciona offline depois de abrir 1x)
+if("serviceWorker" in navigator){
+  window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+}
+</script>
+</body>
+</html>

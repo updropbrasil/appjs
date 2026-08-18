@@ -13,7 +13,7 @@ const CANAL = {
   VISIT_REQUEST: 'Pediu visita',
 };
 
-export default function LeadsClient({ initialLeads, initialWebhook, initialSecret, codigoExemplo }) {
+export default function LeadsClient({ initialLeads, initialWebhook, codigoExemplo }) {
   const supabase = createClient();
   const [leads, setLeads] = useState(initialLeads);
   const [aba, setAba] = useState('todos');
@@ -24,13 +24,6 @@ export default function LeadsClient({ initialLeads, initialWebhook, initialSecre
   const [copiado, setCopiado] = useState(false);
   const [verConfig, setVerConfig] = useState(!initialWebhook);
   const [simulando, setSimulando] = useState('');
-  const [secret, setSecret] = useState(initialSecret || '');
-  const [secretSalvo, setSecretSalvo] = useState(true);
-
-  async function salvarSecret() {
-    await supabase.from('site_config').upsert({ key: 'lead_secret_key', value: (secret || '').trim() });
-    setSecretSalvo(true);
-  }
 
   // Dispara no nosso próprio endereço um lead no formato exato que o Grupo OLX
   // manda. Prova a corrente inteira: portal → site → n8n.
@@ -167,20 +160,6 @@ export default function LeadsClient({ initialLeads, initialWebhook, initialSecre
                   <span style={{ fontSize: 11.5, color: 'var(--muted)', flex: 1, minWidth: 160, lineHeight: 1.5 }}>
                     Manda um lead falso no formato exato do Grupo OLX (imóvel {codigoExemplo}) e mostra na lista abaixo.
                   </span>
-                </div>
-              </div>
-
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', color: 'var(--taupe)', marginBottom: 7 }}>SECRET_KEY DO GRUPO OLX</div>
-                <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-                  <input value={secret} onChange={e => { setSecret(e.target.value); setSecretSalvo(false); }} placeholder="cole aqui quando eles enviarem" spellCheck="false"
-                    style={{ flex: 1, minWidth: 190, background: 'var(--bg)', border: '1px solid rgba(243,237,227,.15)', borderRadius: 9, padding: '11px 13px', fontSize: 13, color: 'var(--cream)', fontFamily: 'ui-monospace, Menlo, monospace' }} />
-                  <button onClick={salvarSecret} style={{ padding: '11px 15px', borderRadius: 9, background: 'var(--accent)', color: '#2A2117', fontSize: 12.5, fontWeight: 700, border: 0 }}>{secretSalvo ? 'Salvo ✓' : 'Salvar'}</button>
-                </div>
-                <div style={{ fontSize: 11.5, color: secret ? 'var(--green)' : 'var(--muted)', marginTop: 6, lineHeight: 1.5 }}>
-                  {secret
-                    ? '✓ Conferindo a assinatura de cada lead — só o Grupo OLX consegue gravar.'
-                    : 'Enquanto vazio, aceitamos qualquer lead (necessário para rodar o validador deles). Eles enviam a chave na homologação — cole aqui e salve, sem precisar de deploy.'}
                 </div>
               </div>
             </div>

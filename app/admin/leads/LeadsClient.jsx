@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '../../../lib/supabase-browser';
-import { SITE_URL } from '../../../lib/config';
+import { SITE_URL, LEAD_TOKEN } from '../../../lib/config';
 
 const CANAL = {
   CLICK_WHATSAPP: 'WhatsApp',
@@ -54,7 +54,7 @@ export default function LeadsClient({ initialLeads, initialWebhook, codigoExempl
     setTimeout(() => setSimulando(''), 5000);
   }
 
-  const webhookUrl = `${SITE_URL}/grupozap/lead`;
+  const webhookUrl = `${SITE_URL}/api/leads/zap?k=${LEAD_TOKEN}`;
   const falhas = leads.filter(l => l.webhook_status === 'falhou' || l.webhook_status === 'sem_webhook');
   const lista = aba === 'falhas' ? falhas : leads;
 

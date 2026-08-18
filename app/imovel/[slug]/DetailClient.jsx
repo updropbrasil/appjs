@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { ytId, ytThumb, ytEmbed, MOBILIA_LABELS, whatsappLink } from '../../../lib/format';
+import { ytId, ytThumb, ytEmbed, MOBILIA_LABELS, whatsappLink, formatPreco } from '../../../lib/format';
 
 export default function DetailClient({ im, precoFmt }) {
   const vid = ytId(im.youtube_url);
@@ -47,9 +47,14 @@ export default function DetailClient({ im, precoFmt }) {
   const cur = slides[idx] || {};
   const wa = whatsappLink(`Olá! Tenho interesse no imóvel ${im.codigo ? `(cód. ${im.codigo}) ` : ''}"${im.titulo}" no ${im.bairro}. Pode me passar mais informações?`);
 
+  const taxa = (tipo, cents) => tipo === 'isento' ? 'Isento'
+    : tipo === 'nao_informado' ? null
+    : (cents ? formatPreco(cents) : null);
+
   const feats = [
     ['Quartos', im.quartos], ['Banheiros', im.banheiros], ['Vagas', im.vagas],
-    ['Área', im.area_m2 ? `${im.area_m2} m²` : null], ['Andar', im.andar], ['Tipo', im.categoria], ['Mobília', MOBILIA_LABELS[im.mobilia]]
+    ['Área', im.area_m2 ? `${im.area_m2} m²` : null], ['Andar', im.andar], ['Tipo', im.categoria], ['Mobília', MOBILIA_LABELS[im.mobilia]],
+    ['Condomínio', taxa(im.condominio_tipo, im.condominio_cents)], ['IPTU', taxa(im.iptu_tipo, im.iptu_cents)]
   ].filter(([, v]) => v);
 
   return (

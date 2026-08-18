@@ -3,7 +3,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '../../../lib/supabase-browser';
 import { formatPreco } from '../../../lib/format';
-import { motivoInapto, qualidadeAnuncio } from '../../../lib/zap-feed';
+import { motivoInapto, qualidadeAnuncio, normCodigo } from '../../../lib/zap-feed';
 import { SITE_URL } from '../../../lib/config';
 
 export default function PortaisClient({ initialImoveis, initialEmail }) {
@@ -14,8 +14,10 @@ export default function PortaisClient({ initialImoveis, initialEmail }) {
   const [email, setEmail] = useState(initialEmail || '');
   const [emailSalvo, setEmailSalvo] = useState(true);
   const [aberto, setAberto] = useState(null);
+  const [busca, setBusca] = useState('');
   const [sel, setSel] = useState([]);
   const [aplicando, setAplicando] = useState(false);
+  const [verConfig, setVerConfig] = useState(!initialEmail);
 
   const feedUrl = `${SITE_URL}/feed/zap.xml`;
 
@@ -46,6 +48,12 @@ export default function PortaisClient({ initialImoveis, initialEmail }) {
   });
 
   const lista = aba === 'no-portal' ? grupos.no : aba === 'fora' ? grupos.fora : grupos.pendente;
+  const q = busca.trim().toLowerCase();
+  const qn = normCodigo(busca);
+  const listaVis = !q ? lista : lista.filter(({ im }) =>
+    (im.titulo || '').toLowerCase().includes(q)
+    || (im.bairro || '').toLowerCase().includes(q)
+    || (qn && normCodigo(im.codigo).includes(qn)));
   const mediaScore = grupos.no.length
     ? Math.round(grupos.no.reduce((s, { im }) => s + qualidadeAnuncio(im).score, 0) / grupos.no.length)
     : 0;
@@ -61,6 +69,8 @@ export default function PortaisClient({ initialImoveis, initialEmail }) {
             <div style={{ fontSize: 12, color: 'var(--taupe)' }}>Zap Imóveis · VivaReal · OLX</div>
           </div>
           <Link href="/" title="Ver o site" style={{ display: 'flex', width: 38, height: 38, flex: 'none', alignItems: 'center', justifyContent: 'center', borderRadius: 999, border: '1px solid rgba(243,237,227,.15)', color: 'var(--sand)' }}>⌂</Link>
+          <button onClick={() => setVerConfig(v => !v)} title="Configuração"
+            style={{ width: 38, height: 38, flex: 'none', borderRadius: 999, border: '1px solid rgba(243,237,227,.15)', background: 'transparent', color: 'var(--sand)', fontSize: 15 }}>⚙</button>
         </header>
 
         <div style={{ padding: '18px 20px 60px', display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -73,26 +83,27 @@ export default function PortaisClient({ initialImoveis, initialEmail }) {
             <Kpi valor={`${mediaScore}%`} label="qualidade média" cor="var(--accent)" />
           </div>
 
-          {/* FEED */}
-          <div style={{ background: 'var(--bg-2)', border: '1px solid rgba(232,168,124,.25)', borderRadius: 14, padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <strong style={{ fontSize: 13.5, color: 'var(--cream-2)' }}>Endereço do feed</strong>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <input readOnly value={feedUrl} onFocus={e => e.target.select()} style={{ flex: 1, minWidth: 200, background: 'var(--bg)', border: '1px solid rgba(232,168,124,.3)', borderRadius: 10, padding: '13px 15px', fontSize: 14, color: 'var(--accent)' }} />
-              <button onClick={() => { navigator.clipboard?.writeText(feedUrl); setCopiado(true); setTimeout(() => setCopiado(false), 1800); }}
-                style={{ padding: '13px 18px', borderRadius: 10, background: 'var(--accent)', color: '#2A2117', fontSize: 13, fontWeight: 700, border: 0 }}>{copiado ? 'Copiado ✓' : 'Copiar'}</button>
-              <a href={feedUrl} target="_blank" rel="noopener" style={{ padding: '13px 16px', borderRadius: 10, border: '1px solid rgba(243,237,227,.18)', color: 'var(--sand)', fontSize: 13 }}>Abrir</a>
+          {/* CONFIGURAÇÃO — escondida atrás da engrenagem */}
+          {verConfig && (
+            <div style={{ background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 12, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', color: 'var(--taupe)', marginBottom: 7 }}>ENDEREÇO DO FEED</div>
+                <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+                  <input readOnly value={feedUrl} onFocus={e => e.target.select()} style={{ flex: 1, minWidth: 190, background: 'var(--bg)', border: '1px solid rgba(243,237,227,.12)', borderRadius: 9, padding: '11px 13px', fontSize: 12.5, color: 'var(--taupe)' }} />
+                  <button onClick={() => { navigator.clipboard?.writeText(feedUrl); setCopiado(true); setTimeout(() => setCopiado(false), 1800); }}
+                    style={{ padding: '11px 15px', borderRadius: 9, border: '1px solid rgba(243,237,227,.22)', background: 'transparent', color: copiado ? 'var(--green)' : 'var(--sand)', fontSize: 12.5 }}>{copiado ? 'Copiado ✓' : 'Copiar'}</button>
+                  <a href={feedUrl} target="_blank" rel="noopener" style={{ padding: '11px 14px', borderRadius: 9, border: '1px solid rgba(243,237,227,.22)', color: 'var(--sand)', fontSize: 12.5 }}>Abrir</a>
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', color: 'var(--taupe)', marginBottom: 7 }}>E-MAIL DA IMOBILIÁRIA {!email && <span style={{ color: '#c8a87a' }}>— FALTA PREENCHER</span>}</div>
+                <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+                  <input value={email} onChange={e => { setEmail(e.target.value); setEmailSalvo(false); }} type="email" placeholder="contato@jasondias.com.br" style={{ flex: 1, minWidth: 190, background: 'var(--bg)', border: `1px solid ${email ? 'rgba(243,237,227,.15)' : 'rgba(200,168,122,.5)'}`, borderRadius: 9, padding: '11px 13px', fontSize: 14, color: 'var(--cream)' }} />
+                  <button onClick={salvarEmail} style={{ padding: '11px 15px', borderRadius: 9, background: 'var(--accent)', color: '#2A2117', fontSize: 12.5, fontWeight: 700, border: 0 }}>{emailSalvo ? 'Salvo ✓' : 'Salvar'}</button>
+                </div>
+              </div>
             </div>
-            <div style={{ fontSize: 11.5, color: 'var(--muted)' }}>O Grupo OLX lê este endereço sozinho, 2× por dia. Destaque e Super Destaque você define no Canal Pro — aqui a gente não mexe.</div>
-          </div>
-
-          {/* E-MAIL */}
-          <div style={{ background: 'var(--bg-2)', border: `1px solid ${email ? 'var(--line)' : 'rgba(200,168,122,.5)'}`, borderRadius: 14, padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <strong style={{ fontSize: 13.5, color: 'var(--cream-2)' }}>E-mail que recebe os leads {!email && <span style={{ color: '#c8a87a', fontWeight: 400 }}>— falta preencher</span>}</strong>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <input value={email} onChange={e => { setEmail(e.target.value); setEmailSalvo(false); }} type="email" placeholder="contato@jasondias.com.br" style={{ flex: 1, minWidth: 200, background: 'var(--bg)', border: '1px solid rgba(243,237,227,.15)', borderRadius: 10, padding: '13px 15px', fontSize: 15, color: 'var(--cream)' }} />
-              <button onClick={salvarEmail} style={{ padding: '13px 18px', borderRadius: 10, background: 'var(--accent)', color: '#2A2117', fontSize: 13, fontWeight: 700, border: 0 }}>{emailSalvo ? 'Salvo ✓' : 'Salvar'}</button>
-            </div>
-          </div>
+          )}
 
           {/* ABAS */}
           <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
@@ -102,12 +113,14 @@ export default function PortaisClient({ initialImoveis, initialEmail }) {
           </div>
 
           {/* SELEÇÃO EM MASSA */}
+          <input value={busca} onChange={e => { setBusca(e.target.value); setSel([]); }} placeholder="Buscar por código (jdv1019), título ou bairro…" style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 12, padding: '13px 15px', fontSize: 15, color: 'var(--cream)' }} />
+
           {lista.length > 0 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', background: sel.length ? 'rgba(232,168,124,.1)' : 'var(--bg-2)', border: `1px solid ${sel.length ? 'rgba(232,168,124,.35)' : 'var(--line)'}`, borderRadius: 12, padding: '10px 14px' }}>
-              <button onClick={() => setSel(sel.length === lista.length ? [] : lista.map(({ im }) => im.id))}
+              <button onClick={() => setSel(sel.length === listaVis.length ? [] : listaVis.map(({ im }) => im.id))}
                 style={{ display: 'flex', alignItems: 'center', gap: 9, background: 'transparent', border: 0, color: 'var(--cream)', fontSize: 13, padding: 0 }}>
-                <span style={{ width: 20, height: 20, flex: 'none', borderRadius: 6, border: `1.5px solid ${sel.length === lista.length ? 'var(--accent)' : 'rgba(243,237,227,.3)'}`, background: sel.length === lista.length ? 'var(--accent)' : 'transparent', color: '#2A2117', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>{sel.length === lista.length ? '✓' : ''}</span>
-                {sel.length === lista.length ? 'Desmarcar todos' : 'Selecionar todos'}
+                <span style={{ width: 20, height: 20, flex: 'none', borderRadius: 6, border: `1.5px solid ${sel.length === listaVis.length ? 'var(--accent)' : 'rgba(243,237,227,.3)'}`, background: sel.length === listaVis.length ? 'var(--accent)' : 'transparent', color: '#2A2117', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>{sel.length === listaVis.length ? '✓' : ''}</span>
+                {sel.length === listaVis.length ? 'Desmarcar todos' : 'Selecionar todos'}
               </button>
               {sel.length > 0 && (
                 <>
@@ -125,7 +138,7 @@ export default function PortaisClient({ initialImoveis, initialEmail }) {
 
           {/* LISTA */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {lista.map(({ im, motivo }) => {
+            {listaVis.map(({ im, motivo }) => {
               const q = qualidadeAnuncio(im);
               const abertoAqui = aberto === im.id;
               return (
@@ -175,12 +188,11 @@ export default function PortaisClient({ initialImoveis, initialEmail }) {
                 </div>
               );
             })}
-            {lista.length === 0 && <div style={{ textAlign: 'center', padding: 40, color: 'var(--muted)', fontSize: 13 }}>Nenhum imóvel nesta aba.</div>}
+            {listaVis.length === 0 && <div style={{ textAlign: 'center', padding: 40, color: 'var(--muted)', fontSize: 13 }}>{q ? 'Nada encontrado para essa busca.' : 'Nenhum imóvel nesta aba.'}</div>}
           </div>
 
-          <div style={{ background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 12, padding: '14px 16px', fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.65 }}>
-            <strong style={{ color: 'var(--sand)', display: 'block', marginBottom: 4 }}>Como o portal enxerga o endereço</strong>
-            Mandamos rua, número e CEP porque isso melhora seu posicionamento e coloca o imóvel na busca por mapa — mas o portal exibe <strong style={{ color: 'var(--sand)' }}>só o bairro</strong> para quem pesquisa. Nenhum concorrente vê a rua.
+          <div style={{ background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 12, padding: '13px 15px', fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.6 }}>
+            Rua, número e CEP servem para o imóvel entrar na busca por mapa e subir no ranqueamento — o portal exibe <strong style={{ color: 'var(--sand)' }}>só o bairro</strong> para quem pesquisa.
           </div>
         </div>
       </div>

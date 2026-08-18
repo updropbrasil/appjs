@@ -12,9 +12,11 @@ export default async function LeadsPage() {
 
   const { data: leads } = await supabase
     .from('leads')
-    .select('*, imoveis(titulo, slug, bairro, preco_cents, finalidade)')
+    .select('*')
     .order('created_at', { ascending: false })
     .limit(300);
 
-  return <LeadsClient initialLeads={leads || []} />;
+  const { data: cfg } = await supabase.from('site_config').select('value').eq('key', 'lead_webhook_url').maybeSingle();
+
+  return <LeadsClient initialLeads={leads || []} initialWebhook={cfg?.value || ''} />;
 }

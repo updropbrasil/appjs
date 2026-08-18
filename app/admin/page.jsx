@@ -15,5 +15,10 @@ export default async function AdminPage() {
   const cfgMap = {};
   (cfg || []).forEach(r => { cfgMap[r.key] = r.value; });
 
-  return <GestaoClient initialImoveis={imoveis || []} initialParceiros={parceiros || []} initialHero={cfgMap.hero_video || ''} initialHeroFile={cfgMap.hero_video_file || ''} initialZapEmail={cfgMap.zap_email || ''} />;
+  // quantos contatos cada imóvel já gerou
+  const { data: leadRows } = await supabase.from('leads').select('imovel_id');
+  const leadCount = {};
+  (leadRows || []).forEach(r => { if (r.imovel_id) leadCount[r.imovel_id] = (leadCount[r.imovel_id] || 0) + 1; });
+
+  return <GestaoClient initialImoveis={imoveis || []} initialParceiros={parceiros || []} initialHero={cfgMap.hero_video || ''} initialHeroFile={cfgMap.hero_video_file || ''} leadCount={leadCount} />;
 }

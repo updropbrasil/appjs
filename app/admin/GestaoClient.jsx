@@ -6,9 +6,10 @@ import { createClient } from '../../lib/supabase-browser';
 import { uploadToR2, deleteFromR2 } from '../../lib/r2-upload';
 import { compressBlob, fetchBlob, toWideBlob } from '../../lib/image';
 import { formatPreco, ytId, ytThumb } from '../../lib/format';
+import { normCodigo } from '../../lib/zap-feed';
 import { motivoInapto } from '../../lib/zap-feed';
 
-export default function GestaoClient({ initialImoveis, initialParceiros, initialHero, initialHeroFile }) {
+export default function GestaoClient({ initialImoveis, initialParceiros, initialHero, initialHeroFile, leadCount = {} }) {
   const router = useRouter();
   const supabase = createClient();
   const [imoveis, setImoveis] = useState(initialImoveis);
@@ -151,9 +152,10 @@ export default function GestaoClient({ initialImoveis, initialParceiros, initial
   }
 
   const q = busca.trim().toLowerCase();
+  const qn = normCodigo(busca);
   const lista = imoveis
     .filter(i => aba === 'todos' || (aba === 'ativos' ? i.status === 'ativo' : i.status === 'pausado'))
-    .filter(i => !q || i.titulo.toLowerCase().includes(q) || (i.bairro || '').toLowerCase().includes(q) || (i.codigo || '').toLowerCase().includes(q));
+    .filter(i => !q || i.titulo.toLowerCase().includes(q) || (i.bairro || '').toLowerCase().includes(q) || (i.codigo || '').toLowerCase().includes(q) || (qn && normCodigo(i.codigo).includes(qn)));
   const ativos = imoveis.filter(i => i.status === 'ativo').length;
   const pausados = imoveis.filter(i => i.status === 'pausado').length;
 
@@ -289,7 +291,10 @@ export default function GestaoClient({ initialImoveis, initialParceiros, initial
                       {!pausado && im.zap_ativo !== false && !motivoInapto(im) && <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 5, background: 'rgba(120,150,200,.15)', border: '1px solid rgba(120,150,200,.3)', color: '#9db4d8' }}>PORTAL</span>}
                       {im.parceiros?.nome && <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 5, background: 'rgba(232,168,124,.12)', border: '1px solid rgba(232,168,124,.3)', color: 'var(--accent)' }}>{im.parceiros.nome}{im.parceiro_pct ? ` · ${im.parceiro_pct}%` : ''}</span>}
                     </div>
-                    <div style={{ fontSize: 12.5, color: 'var(--taupe)', marginTop: 3 }}>{im.bairro} · {formatPreco(im.preco_cents)}{im.finalidade === 'aluguel' ? '/mês' : ''}</div>
+                    <div style={{ fontSize: 12.5, color: 'var(--taupe)', marginTop: 3 }}>
+                      {im.bairro} · {formatPreco(im.preco_cents)}{im.finalidade === 'aluguel' ? '/mês' : ''}
+                      {leadCount[im.id] ? <span style={{ color: 'var(--accent)', fontWeight: 700 }}> · {leadCount[im.id]} contato{leadCount[im.id] > 1 ? 's' : ''}</span> : null}
+                    </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     <Link href={`/admin/novo?id=${im.id}`} style={{ padding: '9px 14px', borderRadius: 8, background: 'rgba(232,168,124,.12)', border: '1px solid rgba(232,168,124,.35)', color: 'var(--accent)', fontSize: 12.5, fontWeight: 700 }}>Editar</Link>

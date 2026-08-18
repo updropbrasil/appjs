@@ -4,17 +4,15 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '../../../lib/supabase-browser';
 import { uploadToR2 } from '../../../lib/r2-upload';
 import { ytId, ytThumb, parsePreco, formatPreco, slugify, tituloSeo, MOBILIA_LABELS, maskThousands, onlyDigits } from '../../../lib/format';
-import { qualidadeAnuncio } from '../../../lib/zap-feed';
+import { qualidadeAnuncio, cepValido } from '../../../lib/zap-feed';
 import { toWideBlob } from '../../../lib/image';
 
 const CATEGORIAS = ['Apartamento', 'Casa', 'Cobertura', 'Flat / Studio', 'Comercial'];
 const BAIRROS = ['Cabo Branco', 'Manaíra', 'Tambaú', 'Bessa', 'Altiplano', 'Intermares'];
-const FEATURE_OPTS = [
-  'Piscina', 'Academia', 'Salão de festas', 'Churrasqueira', 'Varanda gourmet', 'Varanda',
-  'Elevador', 'Portaria 24h', 'Segurança 24h', 'Playground', 'Salão de jogos', 'Quadra poliesportiva',
-  'Sauna', 'Espaço pet', 'Coworking', 'Ar condicionado', 'Vista para o mar', 'Condomínio fechado',
-  'Closet', 'Cozinha americana', 'Lavabo', 'Área de serviço', 'Permite animais', 'Portão eletrônico',
-  'Interfone', 'Energia solar', 'Piscina privativa', 'Escritório',
+const FEATURE_GRUPOS = [
+  ['Lazer do condomínio', ['Piscina', 'Piscina infantil', 'Academia', 'Salão de festas', 'Salão de jogos', 'Churrasqueira', 'Espaço gourmet', 'Playground', 'Quadra poliesportiva', 'Quadra de tênis', 'Sauna', 'Spa', 'Cinema', 'Coworking', 'Espaço pet', 'Lavanderia', 'Mini mercado', 'Bicicletário', 'Vestiário']],
+  ['Serviços e segurança', ['Portaria 24h', 'Segurança 24h', 'Circuito de segurança', 'Alarme', 'Portão eletrônico', 'Interfone', 'Elevador', 'Gerador', 'Energia solar', 'Condomínio fechado', 'Acesso para deficientes']],
+  ['Do imóvel', ['Varanda gourmet', 'Varanda', 'Vista para o mar', 'Ar condicionado', 'Closet', 'Cozinha americana', 'Cozinha planejada', 'Lavabo', 'Área de serviço', 'Escritório', 'Despensa', 'Hidromassagem', 'Lareira', 'Piscina privativa', 'Quintal', 'Jardim', 'Permite animais']],
 ];
 const MOBILIAS = [['mobiliado', 'Mobiliado'], ['semi', 'Semimobiliado'], ['sem', 'Sem mobília'], ['planejados', 'Com planejados']];
 const STEPS = ['Tipo', 'Localização', 'Características', 'Valores', 'Vídeo e fotos', 'Revisão'];
@@ -55,7 +53,10 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
     bairro: imovel.bairro, endereco: imovel.endereco || '', referencia: imovel.referencia || '',
     mobilia: imovel.mobilia, quartos: imovel.quartos || 0, suites: imovel.suites || 0,
     banheiros: imovel.banheiros || 0, vagas: imovel.vagas || 0, area: imovel.area_m2 || '', andar: imovel.andar || '',
-    preco: imovel.preco_cents ? String(imovel.preco_cents / 100) : '', condominio: '', iptu: '',
+    preco: imovel.preco_cents ? String(imovel.preco_cents / 100) : '',
+    condominio: imovel.condominio_cents ? String(imovel.condominio_cents / 100) : '',
+    iptu: imovel.iptu_cents ? String(imovel.iptu_cents / 100) : '',
+    condominio_tipo: imovel.condominio_tipo || 'valor', iptu_tipo: imovel.iptu_tipo || 'valor',
     video: imovel.youtube_url || '', videoUrl: imovel.video_file_url || '', videoMode: imovel.video_file_url ? 'arquivo' : 'link', descricao: imovel.descricao || '',
     parceiro_id: imovel.parceiro_id || '', parceiro_pct: imovel.parceiro_pct || '', codigo: imovel.codigo || '', cep: imovel.cep || '',
     numero: imovel.numero || '', complemento: imovel.complemento || '', ano: imovel.ano_construcao || '',
@@ -63,6 +64,7 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
   } : {
     finalidade: 'aluguel', categoria: 'Apartamento', titulo: '', bairro: '', endereco: '', referencia: '',
     mobilia: 'sem', quartos: 3, suites: 1, banheiros: 2, vagas: 2, area: '', andar: '', preco: '', condominio: '', iptu: '',
+    condominio_tipo: 'valor', iptu_tipo: 'valor',
     video: '', videoUrl: '', videoMode: 'link', descricao: '', parceiro_id: '', parceiro_pct: '', codigo: '', cep: '',
     numero: '', complemento: '', ano: '', features: []
   });
@@ -136,7 +138,10 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
         bairro: form.bairro || 'João Pessoa', endereco: form.endereco, referencia: form.referencia,
         quartos: Number(form.quartos), suites: Number(form.suites), banheiros: Number(form.banheiros),
         vagas: Number(form.vagas), area_m2: form.area ? Number(String(form.area).replace(/\D/g, '')) : null, andar: form.andar || null,
-        preco_cents: parsePreco(form.preco), condominio_cents: parsePreco(form.condominio), iptu_cents: parsePreco(form.iptu),
+        preco_cents: parsePreco(form.preco),
+        condominio_cents: form.condominio_tipo === 'valor' ? parsePreco(form.condominio) : (form.condominio_tipo === 'isento' ? 0 : null),
+        iptu_cents: form.iptu_tipo === 'valor' ? parsePreco(form.iptu) : (form.iptu_tipo === 'isento' ? 0 : null),
+        condominio_tipo: form.condominio_tipo || 'valor', iptu_tipo: form.iptu_tipo || 'valor',
         youtube_url: (form.videoMode === 'link' && form.video) ? form.video : null,
         video_id: (form.videoMode === 'link' && vid) ? vid : null,
         video_file_url: (form.videoMode === 'arquivo' && form.videoUrl) ? form.videoUrl.trim() : (form.videoMode === 'arquivo' ? (imovel?.video_file_url || null) : null),
@@ -274,8 +279,11 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
                 <Hint>Toque numa sugestão ou escreva outro bairro.</Hint>
               </Field>
               <Field label="CEP">
-                <input value={form.cep} onChange={e => set({ cep: maskCep(e.target.value) })} placeholder="58000-000" inputMode="numeric" style={inp} />
-                <Hint>Obrigatório para publicar no Zap / VivaReal / OLX. Não aparece no nosso site.</Hint>
+                <input value={form.cep} onChange={e => set({ cep: maskCep(e.target.value) })} placeholder="58000-000" inputMode="numeric"
+                  style={{ ...inp, borderColor: form.cep && !cepValido(form.cep) ? 'rgba(200,138,122,.6)' : 'rgba(243,237,227,.15)' }} />
+                {form.cep && !cepValido(form.cep)
+                  ? <Hint><span style={{ color: '#c88a7a' }}>CEP incompleto — o portal recusa o anúncio. Precisa ter 8 dígitos.</span></Hint>
+                  : <Hint>Obrigatório para publicar no Zap / VivaReal / OLX. Não aparece no nosso site.</Hint>}
               </Field>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <Field label="Número">
@@ -332,16 +340,23 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
                 <Hint>Opcional, mas conta como anúncio completo no portal.</Hint>
               </Field>
               <Field label={`Características (${(form.features || []).length})`}>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  {FEATURE_OPTS.map(f => {
-                    const on = (form.features || []).includes(f);
-                    return (
-                      <button key={f} onClick={() => set({ features: on ? form.features.filter(x => x !== f) : [...(form.features || []), f] })}
-                        style={{ padding: '9px 14px', borderRadius: 999, fontSize: 13, fontWeight: on ? 700 : 400, border: `1px solid ${on ? 'var(--accent)' : 'rgba(243,237,227,.2)'}`, background: on ? 'rgba(232,168,124,.12)' : 'transparent', color: on ? 'var(--accent)' : 'var(--sand)' }}>{f}</button>
-                    );
-                  })}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {FEATURE_GRUPOS.map(([grupo, opts]) => (
+                    <div key={grupo}>
+                      <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.12em', color: 'var(--taupe)', marginBottom: 8 }}>{grupo.toUpperCase()}</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                        {opts.map(f => {
+                          const on = (form.features || []).includes(f);
+                          return (
+                            <button key={f} onClick={() => set({ features: on ? form.features.filter(x => x !== f) : [...(form.features || []), f] })}
+                              style={{ padding: '9px 13px', borderRadius: 999, fontSize: 12.5, fontWeight: on ? 700 : 400, border: `1px solid ${on ? 'var(--accent)' : 'rgba(243,237,227,.2)'}`, background: on ? 'rgba(232,168,124,.12)' : 'transparent', color: on ? 'var(--accent)' : 'var(--sand)' }}>{f}</button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <Hint>Marque 4 ou mais — o portal usa isso nos filtros de busca, é o que traz cliente qualificado.</Hint>
+                <Hint>Mesma lista que o Zap / VivaReal / OLX usa nos filtros. Marque 4 ou mais — é o que traz cliente qualificado.</Hint>
               </Field>
             </>
           )}
@@ -357,8 +372,10 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
                 </div>
               </Field>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <Field label="Condomínio"><div style={dinInp}><span style={dinR}>R$</span><input value={maskThousands(form.condominio)} onChange={e => set({ condominio: onlyDigits(e.target.value) })} placeholder="opcional" inputMode="numeric" style={dinField} /></div></Field>
-                <Field label="IPTU"><div style={dinInp}><span style={dinR}>R$</span><input value={maskThousands(form.iptu)} onChange={e => set({ iptu: onlyDigits(e.target.value) })} placeholder="opcional" inputMode="numeric" style={dinField} /></div></Field>
+                <TaxaField label="Condomínio" tipo={form.condominio_tipo} valor={form.condominio}
+                  onTipo={t => set({ condominio_tipo: t })} onValor={v => set({ condominio: v })} />
+                <TaxaField label="IPTU" tipo={form.iptu_tipo} valor={form.iptu}
+                  onTipo={t => set({ iptu_tipo: t })} onValor={v => set({ iptu: v })} />
               </div>
               <div style={{ background: 'rgba(232,168,124,.06)', border: '1px solid rgba(232,168,124,.22)', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--sand)' }}>Parceria <span style={{ fontWeight: 400, color: 'var(--muted)' }}>· controle interno</span></div>
@@ -577,6 +594,29 @@ const fotoNav = (disabled) => ({ width: 26, height: 26, borderRadius: 7, border:
 function Label({ children }) { return <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--sand)', marginTop: 6 }}>{children}</div>; }
 function Hint({ children }) { return <span style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>{children}</span>; }
 function Field({ label, children }) { return <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}><span style={{ fontSize: 13, fontWeight: 700, color: 'var(--sand)' }}>{label}</span>{children}</div>; }
+function TaxaField({ label, tipo, valor, onTipo, onValor }) {
+  const t = tipo || 'valor';
+  const opts = [['valor', 'Valor'], ['isento', 'Isento'], ['nao_informado', 'Não sei']];
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--sand)' }}>{label}</span>
+      <div style={{ display: 'flex', background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 10, padding: 3 }}>
+        {opts.map(([k, l]) => (
+          <button key={k} onClick={() => onTipo(k)}
+            style={{ flex: 1, padding: '9px 4px', borderRadius: 7, border: 0, fontSize: 12, fontWeight: t === k ? 700 : 400, background: t === k ? 'var(--accent)' : 'transparent', color: t === k ? '#2A2117' : 'var(--taupe)' }}>{l}</button>
+        ))}
+      </div>
+      {t === 'valor' && (
+        <div style={dinInp}><span style={dinR}>R$</span>
+          <input value={maskThousands(valor)} onChange={e => onValor(onlyDigits(e.target.value))} placeholder="0" inputMode="numeric" style={dinField} />
+        </div>
+      )}
+      {t === 'isento' && <Hint>Aparece como <strong style={{ color: 'var(--green)' }}>Isento</strong> no anúncio.</Hint>}
+      {t === 'nao_informado' && <Hint>Não aparece no anúncio — sem prometer valor que não sabemos.</Hint>}
+    </div>
+  );
+}
+
 function Chips({ opts, value, onPick }) {
   return <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>{opts.map(([k, l]) => (
     <button key={k} onClick={() => onPick(k)} style={{ padding: '12px 18px', borderRadius: 999, fontSize: 14, fontWeight: value === k ? 700 : 400, border: `1px solid ${value === k ? 'var(--accent)' : 'rgba(243,237,227,.2)'}`, background: value === k ? 'rgba(232,168,124,.12)' : 'transparent', color: value === k ? 'var(--accent)' : 'var(--sand)' }}>{l}</button>

@@ -291,9 +291,12 @@ export default function GestaoClient({ initialImoveis, initialParceiros, initial
                       {!pausado && im.zap_ativo !== false && !motivoInapto(im) && <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 5, background: 'rgba(120,150,200,.15)', border: '1px solid rgba(120,150,200,.3)', color: '#9db4d8' }}>PORTAL</span>}
                       {im.parceiros?.nome && <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 5, background: 'rgba(232,168,124,.12)', border: '1px solid rgba(232,168,124,.3)', color: 'var(--accent)' }}>{im.parceiros.nome}{im.parceiro_pct ? ` · ${im.parceiro_pct}%` : ''}</span>}
                     </div>
-                    <div style={{ fontSize: 12.5, color: 'var(--taupe)', marginTop: 3 }}>
-                      {im.bairro} · {formatPreco(im.preco_cents)}{im.finalidade === 'aluguel' ? '/mês' : ''}
-                      {leadCount[im.id] ? <span style={{ color: 'var(--accent)', fontWeight: 700 }}> · {leadCount[im.id]} contato{leadCount[im.id] > 1 ? 's' : ''}</span> : null}
+                    <div style={{ fontSize: 12.5, color: 'var(--taupe)', marginTop: 3, display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                      <span>{im.bairro} · {formatPreco(im.preco_cents)}{im.finalidade === 'aluguel' ? '/mês' : ''}</span>
+                      <span title="contatos recebidos" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11.5, fontWeight: leadCount[im.id] ? 700 : 400, color: leadCount[im.id] ? 'var(--accent)' : 'var(--muted)' }}>
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V6a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"></path></svg>
+                        {leadCount[im.id] || 0}
+                      </span>
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

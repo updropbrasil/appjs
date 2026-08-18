@@ -6,7 +6,7 @@ import { formatPreco } from '../../../lib/format';
 import { motivoInapto, qualidadeAnuncio, normCodigo } from '../../../lib/zap-feed';
 import { SITE_URL } from '../../../lib/config';
 
-export default function PortaisClient({ initialImoveis, initialEmail }) {
+export default function PortaisClient({ initialImoveis, initialEmail, leadCount = {} }) {
   const supabase = createClient();
   const [imoveis, setImoveis] = useState(initialImoveis);
   const [aba, setAba] = useState('no-portal');
@@ -150,8 +150,12 @@ export default function PortaisClient({ initialImoveis, initialEmail }) {
                       <div style={{ fontSize: 13.5, color: 'var(--cream-2)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {im.codigo ? <span style={{ color: 'var(--taupe)', fontWeight: 400 }}>{im.codigo} · </span> : null}{im.titulo}
                       </div>
-                      <div style={{ fontSize: 12, color: 'var(--taupe)', marginTop: 2 }}>
-                        {im.bairro} · {formatPreco(im.preco_cents)}{im.finalidade === 'aluguel' ? '/mês' : ''}
+                      <div style={{ fontSize: 12, color: 'var(--taupe)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                        <span>{im.bairro} · {formatPreco(im.preco_cents)}{im.finalidade === 'aluguel' ? '/mês' : ''}</span>
+                        <span title="contatos recebidos" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11.5, fontWeight: leadCount[im.id] ? 700 : 400, color: leadCount[im.id] ? 'var(--accent)' : 'var(--muted)' }}>
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V6a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"></path></svg>
+                          {leadCount[im.id] || 0}
+                        </span>
                       </div>
                       {motivo && <div style={{ fontSize: 11.5, color: '#c8a87a', marginTop: 4 }}>Fora do portal: {motivo}</div>}
                     </div>

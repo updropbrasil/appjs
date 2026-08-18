@@ -13,7 +13,7 @@ const CANAL = {
   VISIT_REQUEST: 'Pediu visita',
 };
 
-export default function LeadsClient({ initialLeads, initialWebhook }) {
+export default function LeadsClient({ initialLeads, initialWebhook, codigoExemplo }) {
   const supabase = createClient();
   const [leads, setLeads] = useState(initialLeads);
   const [aba, setAba] = useState('todos');
@@ -23,6 +23,36 @@ export default function LeadsClient({ initialLeads, initialWebhook }) {
   const [reenviando, setReenviando] = useState(null);
   const [copiado, setCopiado] = useState(false);
   const [verConfig, setVerConfig] = useState(!initialWebhook);
+  const [simulando, setSimulando] = useState('');
+
+  // Dispara no nosso próprio endereço um lead no formato exato que o Grupo OLX
+  // manda. Prova a corrente inteira: portal → site → n8n.
+  async function simularLead() {
+    setSimulando('enviando');
+    try {
+      const r = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          originLeadId: `teste-${Date.now()}`,
+          leadOrigin: 'Grupo OLX',
+          timestamp: new Date().toISOString(),
+          clientListingId: codigoExemplo,
+          name: 'Lead de Teste',
+          email: 'teste@exemplo.com',
+          ddd: '83',
+          phone: '999282626',
+          message: 'Olá, gostaria de mais informações sobre este imóvel.',
+          temperature: 'Alta',
+          transactionType: 'RENT',
+          extraData: { leadType: 'CLICK_WHATSAPP' },
+        }),
+      });
+      setSimulando(r.ok ? 'ok' : 'erro');
+      if (r.ok) setTimeout(() => window.location.reload(), 1200);
+    } catch { setSimulando('erro'); }
+    setTimeout(() => setSimulando(''), 5000);
+  }
 
   const webhookUrl = `${SITE_URL}/api/leads/zap?k=${LEAD_TOKEN}`;
   const falhas = leads.filter(l => l.webhook_status === 'falhou' || l.webhook_status === 'sem_webhook');
@@ -121,6 +151,15 @@ export default function LeadsClient({ initialLeads, initialWebhook }) {
                     style={{ flex: 1, minWidth: 190, background: 'var(--bg)', border: '1px solid rgba(243,237,227,.12)', borderRadius: 9, padding: '11px 13px', fontSize: 12.5, color: 'var(--taupe)' }} />
                   <button onClick={() => { navigator.clipboard?.writeText(webhookUrl); setCopiado(true); setTimeout(() => setCopiado(false), 1800); }}
                     style={{ padding: '11px 15px', borderRadius: 9, border: '1px solid rgba(243,237,227,.22)', background: 'transparent', color: copiado ? 'var(--green)' : 'var(--sand)', fontSize: 12.5 }}>{copiado ? 'Copiado ✓' : 'Copiar'}</button>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 9, flexWrap: 'wrap' }}>
+                  <button onClick={simularLead}
+                    style={{ padding: '10px 15px', borderRadius: 9, border: `1px solid ${simulando === 'ok' ? 'var(--green)' : simulando === 'erro' ? '#c88a7a' : 'rgba(232,168,124,.45)'}`, background: 'transparent', fontSize: 12.5, fontWeight: 700, color: simulando === 'ok' ? 'var(--green)' : simulando === 'erro' ? '#c88a7a' : 'var(--accent)' }}>
+                    {simulando === 'enviando' ? 'Enviando…' : simulando === 'ok' ? 'Funcionou ✓' : simulando === 'erro' ? 'Falhou' : 'Simular lead do portal'}
+                  </button>
+                  <span style={{ fontSize: 11.5, color: 'var(--muted)', flex: 1, minWidth: 160, lineHeight: 1.5 }}>
+                    Manda um lead falso no formato exato do Grupo OLX (imóvel {codigoExemplo}) e mostra na lista abaixo.
+                  </span>
                 </div>
               </div>
             </div>

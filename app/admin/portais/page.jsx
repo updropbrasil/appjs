@@ -10,15 +10,17 @@ export default async function PortaisPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/admin/login');
 
-  const { data: imoveis } = await supabase
-    .from('imoveis')
-    .select('*, imovel_fotos(url, ordem)')
-    .order('created_at', { ascending: false });
+  const [rImoveis, rCfg, rLeads] = await Promise.all([
+    supabase.from('imoveis').select('*, imovel_fotos(url, wide_url, ordem)').order('created_at', { ascending: false }),
+    supabase.from('site_config').select('key, value').in('key', ['zap_email', 'zap_nome', 'zap_telefone']),
+    supabase.from('leads').select('imovel_id'),
+  ]);
 
-  const { data: cfg } = await supabase.from('site_config').select('key, value')
-    .in('key', ['zap_email', 'zap_nome', 'zap_telefone']);
   const c = {};
-  (cfg || []).forEach(r => { c[r.key] = r.value; });
+  (rCfg.data || []).forEach(r => { c[r.key] = r.value; });
 
-  return <PortaisClient initialImoveis={imoveis || []} initialEmail={c.zap_email || ''} />;
+  const leadCount = {};
+  (rLeads.data || []).forEach(r => { if (r.imovel_id) leadCount[r.imovel_id] = (leadCount[r.imovel_id] || 0) + 1; });
+
+  return <PortaisClient initialImoveis={rImoveis.data || []} initialEmail={c.zap_email || ''} leadCount={leadCount} />;
 }

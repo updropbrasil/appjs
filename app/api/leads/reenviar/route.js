@@ -14,7 +14,7 @@ export async function POST(req) {
 
   const { data: lead } = await supabase
     .from('leads')
-    .select('*, imoveis(id, titulo, slug, bairro, preco_cents, finalidade, categoria)')
+    .select('*, imoveis(*, parceiros(nome), imovel_fotos(url, ordem))')
     .eq('id', id).maybeSingle();
   if (!lead) return Response.json({ ok: false, erro: 'lead não encontrado' }, { status: 404 });
 

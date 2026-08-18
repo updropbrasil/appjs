@@ -10,6 +10,7 @@
 // Toda a distribuição (CRM, rodízio, WhatsApp) fica no n8n.
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, SITE_URL, LEAD_TOKEN, LEAD_SECRET_KEY } from '../../../../lib/config';
+import { formatPreco, MOBILIA_LABELS } from '../../../../lib/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,6 +38,62 @@ export function montarPayload({ body, codigo, imovel, telefone }) {
   const link = imovel?.slug ? `${SITE_URL}/imovel/${imovel.slug}` : '';
   const msg = `Olá ${nome.split(' ')[0]}! Aqui é da Jason Dias Imóveis. Vi seu interesse${codigo ? ` no imóvel ${codigo}` : ''}${imovel ? ` — ${imovel.titulo}` : ''}.${link ? ` Segue o tour em vídeo: ${link}` : ''} Posso te ajudar?`;
 
+  // 'Isento' | null (não informado) | valor em reais
+  const taxa = (tipo, cents) => tipo === 'isento' ? 'Isento'
+    : tipo === 'nao_informado' ? null
+    : (cents ? cents / 100 : null);
+
+  // versão em texto, para a IA (nunca devolve vazio)
+  const taxaTxt = (tipo, cents) => tipo === 'isento' ? 'isento'
+    : tipo === 'nao_informado' ? 'não informado — confirmar com o corretor'
+    : (cents ? formatPreco(cents) : 'não informado — confirmar com o corretor');
+
+  const fotos = (imovel?.imovel_fotos || [])
+    .slice().sort((a, b) => (a.ordem || 0) - (b.ordem || 0))
+    .map(f => f.url).filter(Boolean);
+
+  const precoFmt = imovel?.preco_cents
+    ? `${formatPreco(imovel.preco_cents)}${imovel.finalidade === 'aluguel' ? '/mês' : ''}`
+    : null;
+
+  // linha pronta para colar em mensagem: "3 quartos · 2 suítes · 148 m² · 2 vagas"
+  const resumo = imovel ? [
+    imovel.quartos ? `${imovel.quartos} quartos` : null,
+    imovel.suites ? `${imovel.suites} suítes` : null,
+    imovel.banheiros ? `${imovel.banheiros} banheiros` : null,
+    imovel.area_m2 ? `${imovel.area_m2} m²` : null,
+    imovel.vagas ? `${imovel.vagas} vagas` : null,
+    imovel.andar ? `andar ${imovel.andar}` : null,
+    MOBILIA_LABELS[imovel.mobilia] || null,
+  ].filter(Boolean).join(' · ') : null;
+
+  // Bloco de texto para a IA usar como contexto ao responder o cliente.
+  // Escrito em linguagem natural e dizendo o que NÃO sabemos, para a IA
+  // não inventar informação (o que geraria visita frustrada).
+  const contextoIa = imovel ? [
+    `IMÓVEL ${imovel.codigo || ''} — ${imovel.titulo}`.trim(),
+    `Finalidade: ${imovel.finalidade === 'aluguel' ? 'para alugar' : 'à venda'}`,
+    `Tipo: ${imovel.categoria || 'não informado'}`,
+    `Bairro: ${imovel.bairro || 'não informado'}, João Pessoa/PB`,
+    `Valor: ${precoFmt || 'não informado'}`,
+    `Condomínio: ${taxaTxt(imovel.condominio_tipo, imovel.condominio_cents)}`,
+    `IPTU: ${taxaTxt(imovel.iptu_tipo, imovel.iptu_cents)}`,
+    imovel.area_m2 ? `Área: ${imovel.area_m2} m²` : 'Área: não informada',
+    imovel.quartos ? `Quartos: ${imovel.quartos}${imovel.suites ? ` (sendo ${imovel.suites} suíte${imovel.suites > 1 ? 's' : ''})` : ''}` : null,
+    imovel.banheiros ? `Banheiros: ${imovel.banheiros}` : null,
+    imovel.vagas ? `Vagas de garagem: ${imovel.vagas}` : 'Vagas de garagem: não informado',
+    imovel.andar ? `Andar: ${imovel.andar}` : null,
+    imovel.ano_construcao ? `Ano de construção: ${imovel.ano_construcao}` : null,
+    `Mobília: ${MOBILIA_LABELS[imovel.mobilia] || 'não informado'}`,
+    (Array.isArray(imovel.features) && imovel.features.length)
+      ? `Características e lazer: ${imovel.features.join(', ')}`
+      : 'Características e lazer: não informado',
+    imovel.descricao ? `Descrição do anúncio: ${String(imovel.descricao).replace(/\s+/g, ' ').trim()}` : null,
+    link ? `Link do anúncio (com tour em vídeo): ${link}` : null,
+    'Localização exata (rua e número): não revelar ao cliente antes da visita agendada.',
+    'Se o cliente perguntar algo que não está nesta lista, diga que vai confirmar com o corretor — nunca inventar.',
+  ].filter(Boolean).join('\n') : null;
+
   return {
     evento: 'lead_novo',
     origem: body.leadOrigin || 'Grupo OLX',
@@ -53,10 +110,39 @@ export function montarPayload({ body, codigo, imovel, telefone }) {
     mensagem_lead: body.message || null,
     codigo_imovel: codigo,
     imovel: imovel ? {
-      titulo: imovel.titulo, bairro: imovel.bairro, categoria: imovel.categoria,
-      finalidade: imovel.finalidade,
-      preco: imovel.preco_cents ? imovel.preco_cents / 100 : null,
+      codigo: imovel.codigo,
+      titulo: imovel.titulo,
       link,
+      finalidade: imovel.finalidade,
+      categoria: imovel.categoria,
+      bairro: imovel.bairro,
+      endereco: imovel.endereco || null,
+      numero: imovel.numero || null,
+      complemento: imovel.complemento || null,
+      cep: imovel.cep || null,
+      referencia: imovel.referencia || null,
+      preco: imovel.preco_cents ? imovel.preco_cents / 100 : null,
+      preco_formatado: precoFmt,
+      condominio: taxa(imovel.condominio_tipo, imovel.condominio_cents),
+      iptu: taxa(imovel.iptu_tipo, imovel.iptu_cents),
+      quartos: imovel.quartos ?? null,
+      suites: imovel.suites ?? null,
+      banheiros: imovel.banheiros ?? null,
+      vagas: imovel.vagas ?? null,
+      area_m2: imovel.area_m2 ?? null,
+      andar: imovel.andar || null,
+      ano_construcao: imovel.ano_construcao || null,
+      mobilia: MOBILIA_LABELS[imovel.mobilia] || null,
+      caracteristicas: Array.isArray(imovel.features) ? imovel.features : [],
+      descricao: imovel.descricao || null,
+      video_youtube: imovel.youtube_url || null,
+      video_arquivo: imovel.video_file_url || null,
+      capa: imovel.capa_url || fotos[0] || null,
+      fotos_qtd: fotos.length,
+      parceiro: imovel.parceiros?.nome || null,
+      parceiro_pct: imovel.parceiro_pct ?? null,
+      resumo,
+      contexto_ia: contextoIa,
     } : null,
     mcmv: body.extraData?.mcmv || null,
     recebido_em: new Date().toISOString(),
@@ -123,7 +209,7 @@ export async function POST(req) {
   let imovel = null;
   if (codigo) {
     const { data } = await supabase.from('imoveis')
-      .select('id, titulo, slug, bairro, preco_cents, finalidade, categoria')
+      .select('*, parceiros(nome), imovel_fotos(url, ordem)')
       .eq('codigo', codigo).maybeSingle();
     imovel = data || null;
   }

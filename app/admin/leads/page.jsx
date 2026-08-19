@@ -13,7 +13,7 @@ export default async function LeadsPage() {
   const [rLeads, rCfg, rUm] = await Promise.all([
     supabase.from('leads').select('*').order('created_at', { ascending: false }).limit(300),
     supabase.from('site_config').select('key, value').in('key', ['lead_webhook_url']),
-    supabase.from('imoveis').select('codigo').not('codigo', 'is', null).limit(1).maybeSingle(),
+    supabase.from('imoveis').select('codigo, slug').not('codigo', 'is', null).eq('status', 'ativo').limit(1).maybeSingle(),
   ]);
 
   const c = {};
@@ -24,6 +24,7 @@ export default async function LeadsPage() {
       initialLeads={rLeads.data || []}
       initialWebhook={c.lead_webhook_url || ''}
       codigoExemplo={rUm.data?.codigo || 'JDA-0000'}
+      slugExemplo={rUm.data?.slug || ''}
     />
   );
 }

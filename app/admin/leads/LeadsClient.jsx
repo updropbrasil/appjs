@@ -13,7 +13,7 @@ const CANAL = {
   VISIT_REQUEST: 'Pediu visita',
 };
 
-export default function LeadsClient({ initialLeads, initialWebhook, codigoExemplo }) {
+export default function LeadsClient({ initialLeads, initialWebhook, codigoExemplo, slugExemplo }) {
   const supabase = createClient();
   const [leads, setLeads] = useState(initialLeads);
   const [aba, setAba] = useState('todos');
@@ -66,10 +66,11 @@ export default function LeadsClient({ initialLeads, initialWebhook, codigoExempl
   async function testarHook() {
     if (!hook.trim()) return;
     setTestando('enviando');
+    const linkExemplo = slugExemplo ? `${SITE_URL}/imovel/${slugExemplo}` : `${SITE_URL}/`;
     const imovelTeste = {
       codigo: codigoExemplo,
       titulo: 'Apartamento vista-mar no Cabo Branco',
-      link: `${SITE_URL}/`,
+      link: linkExemplo,
       finalidade: 'aluguel',
       categoria: 'Apartamento',
       bairro: 'Cabo Branco',
@@ -102,7 +103,7 @@ export default function LeadsClient({ initialLeads, initialWebhook, codigoExempl
         'Mobília: Semimobiliado',
         'Características e lazer: Piscina, Academia, Varanda gourmet, Portaria 24h',
         'Descrição do anúncio: Vista permanente para o mar, varanda gourmet integrada e prédio com lazer completo.',
-        `Link do anúncio (com tour em vídeo): ${SITE_URL}/`,
+        `Link do anúncio (com tour em vídeo): ${linkExemplo}`,
         'Localização exata (rua e número): não revelar ao cliente antes da visita agendada.',
         'Se o cliente perguntar algo que não está nesta lista, diga que vai confirmar com o corretor — nunca inventar.',
       ].join('\n'),

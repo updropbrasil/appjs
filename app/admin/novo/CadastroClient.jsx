@@ -17,7 +17,7 @@ const FEATURE_GRUPOS = [
 const MOBILIAS = [['mobiliado', 'Mobiliado'], ['semi', 'Semimobiliado'], ['sem', 'Sem mobília'], ['planejados', 'Com planejados']];
 const STEPS = ['Tipo', 'Localização', 'Características', 'Valores', 'Vídeo e fotos', 'Revisão'];
 
-export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
+export default function CadastroClient({ parceiros: parceirosIniciais, imovel, fotosIniciais }) {
   const router = useRouter();
   const supabase = createClient();
   const editando = !!imovel;
@@ -25,6 +25,19 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
   const [step, setStep] = useState(0);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
+  const [parceiros, setParceiros] = useState(parceirosIniciais || []);
+  const [novoParceiro, setNovoParceiro] = useState(false);
+  const [nomeParceiro, setNomeParceiro] = useState('');
+  async function criarParceiro() {
+    const nome = nomeParceiro.trim();
+    if (!nome) return;
+    const { data, error } = await supabase.from('parceiros').insert({ nome }).select('*').single();
+    if (error) { setErro('Não consegui salvar o parceiro. Já existe com esse nome?'); return; }
+    setParceiros(l => [...l, data].sort((a, b) => a.nome.localeCompare(b.nome)));
+    set({ parceiro_id: data.id });
+    setNomeParceiro('');
+    setNovoParceiro(false);
+  }
   const [wide, setWide] = useState(false);
   const [novasFotos, setNovasFotos] = useState([]); // {file, preview}
   const [videoArquivo, setVideoArquivo] = useState(null); // {file, preview}
@@ -60,13 +73,14 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
     video: imovel.youtube_url || '', videoUrl: imovel.video_file_url || '', videoMode: imovel.video_file_url ? 'arquivo' : 'link', descricao: imovel.descricao || '',
     parceiro_id: imovel.parceiro_id || '', parceiro_pct: imovel.parceiro_pct || '', codigo: imovel.codigo || '', cep: imovel.cep || '',
     numero: imovel.numero || '', complemento: imovel.complemento || '', ano: imovel.ano_construcao || '',
+    contato_interno: imovel.contato_interno || '',
     features: Array.isArray(imovel.features) ? imovel.features : []
   } : {
     finalidade: 'aluguel', categoria: 'Apartamento', titulo: '', bairro: '', endereco: '', referencia: '',
     mobilia: 'sem', quartos: 3, suites: 1, banheiros: 2, vagas: 2, area: '', andar: '', preco: '', condominio: '', iptu: '',
     condominio_tipo: 'valor', iptu_tipo: 'valor',
     video: '', videoUrl: '', videoMode: 'link', descricao: '', parceiro_id: '', parceiro_pct: '', codigo: '', cep: '',
-    numero: '', complemento: '', ano: '', features: []
+    numero: '', complemento: '', ano: '', contato_interno: '', features: []
   });
 
   const set = (patch) => setForm(f => ({ ...f, ...patch }));
@@ -144,8 +158,10 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
         condominio_tipo: form.condominio_tipo || 'valor', iptu_tipo: form.iptu_tipo || 'valor',
         youtube_url: (form.videoMode === 'link' && form.video) ? form.video : null,
         video_id: (form.videoMode === 'link' && vid) ? vid : null,
-        video_file_url: (form.videoMode === 'arquivo' && form.videoUrl) ? form.videoUrl.trim() : (form.videoMode === 'arquivo' ? (imovel?.video_file_url || null) : null),
-        capa_url: (form.videoMode === 'link' && vid) ? `https://i.ytimg.com/vi/${vid}/hqdefault.jpg` : (imovel?.capa_url || null),
+        video_file_url: form.videoMode === 'arquivo' ? ((form.videoUrl || '').trim() || null) : null,
+        capa_url: (form.videoMode === 'link' && vid)
+          ? `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`
+          : (String(imovel?.capa_url || '').includes('ytimg.com') ? null : (imovel?.capa_url || null)),
         descricao: form.descricao || null,
         codigo: (form.codigo || '').trim().toUpperCase() || codigoSugerido,
         cep: (form.cep || '').trim() || null,
@@ -154,6 +170,7 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
         ano_construcao: form.ano ? Number(String(form.ano).replace(/\D/g, '')) || null : null,
         features: Array.isArray(form.features) ? form.features : [],
         parceiro_id: form.parceiro_id || null, parceiro_pct: form.parceiro_id ? (Number(form.parceiro_pct) || null) : null,
+        contato_interno: (form.contato_interno || '').trim() || null,
         status: 'ativo'
       };
 
@@ -383,6 +400,15 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
                   <option value="">Sem parceria</option>
                   {parceiros.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
                 </select>
+                {!novoParceiro ? (
+                  <button onClick={() => setNovoParceiro(true)} style={{ alignSelf: 'flex-start', background: 'transparent', border: 0, color: 'var(--accent)', fontSize: 12.5, fontWeight: 700, padding: 0 }}>+ Cadastrar novo parceiro</button>
+                ) : (
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input value={nomeParceiro} onChange={e => setNomeParceiro(e.target.value)} placeholder="Nome do corretor / imobiliária" style={{ ...inp, flex: 1 }} />
+                    <button onClick={criarParceiro} style={{ padding: '0 16px', borderRadius: 12, background: 'var(--accent)', color: '#2A2117', fontSize: 13, fontWeight: 700, border: 0 }}>Salvar</button>
+                    <button onClick={() => { setNovoParceiro(false); setNomeParceiro(''); }} style={{ padding: '0 12px', borderRadius: 12, background: 'transparent', border: '1px solid rgba(243,237,227,.2)', color: 'var(--taupe)', fontSize: 13 }}>×</button>
+                  </div>
+                )}
                 {form.parceiro_id && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <span style={{ fontSize: 13, color: 'var(--sand)' }}>Comissão:</span>
@@ -390,6 +416,10 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
                     <span style={{ color: 'var(--accent)', fontWeight: 700 }}>%</span>
                   </div>
                 )}
+                <Field label="Contato do proprietário / parceiro">
+                  <input value={form.contato_interno} onChange={e => set({ contato_interno: e.target.value })} placeholder="Ex.: João (dono) — 83 99999-0000" style={inp} />
+                  <Hint>🔒 Só interno — não aparece no site nem vai para os portais.</Hint>
+                </Field>
               </div>
             </>
           )}
@@ -397,6 +427,18 @@ export default function CadastroClient({ parceiros, imovel, fotosIniciais }) {
           {step === 4 && (
             <>
               <h2 style={h2}>Vídeo e fotos</h2>
+              {editando && (imovel?.youtube_url || imovel?.video_file_url) && (form.video || form.videoUrl) && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 12, padding: '11px 14px' }}>
+                  <span style={{ flex: 1, fontSize: 12.5, color: 'var(--sand)' }}>Este imóvel tem um vídeo atrelado.</span>
+                  <button onClick={() => { set({ video: '', videoUrl: '' }); setVideoArquivo(null); }}
+                    style={{ padding: '9px 14px', borderRadius: 9, border: '1px solid rgba(200,138,122,.4)', background: 'transparent', color: '#c88a7a', fontSize: 12.5, fontWeight: 700 }}>Remover vídeo</button>
+                </div>
+              )}
+              {editando && (imovel?.youtube_url || imovel?.video_file_url) && !form.video && !form.videoUrl && !videoArquivo && (
+                <div style={{ fontSize: 12, color: '#c8a87a', background: 'rgba(200,168,122,.08)', border: '1px solid rgba(200,168,122,.3)', borderRadius: 10, padding: '9px 13px' }}>
+                  O vídeo será removido do anúncio quando você salvar. O anúncio passa a abrir pelas fotos.
+                </div>
+              )}
               <div style={{ display: 'flex', background: 'var(--bg-2)', borderRadius: 12, padding: 4, border: '1px solid var(--line)' }}>
                 {[['link', 'YouTube'], ['arquivo', 'Vídeo automático']].map(([k, l]) => (
                   <button key={k} onClick={() => set({ videoMode: k })} style={{ flex: 1, padding: '11px 8px', borderRadius: 9, border: 0, fontSize: 13.5, fontWeight: (form.videoMode || 'link') === k ? 700 : 400, background: (form.videoMode || 'link') === k ? 'var(--accent)' : 'transparent', color: (form.videoMode || 'link') === k ? '#2A2117' : 'var(--taupe)' }}>{l}</button>

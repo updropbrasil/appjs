@@ -23,6 +23,9 @@ export default function LeadsClient({ initialLeads, initialWebhook, codigoExempl
   const [reenviando, setReenviando] = useState(null);
   const [copiado, setCopiado] = useState(false);
   const [verConfig, setVerConfig] = useState(!initialWebhook);
+  // ── opções temporárias de teste (retirar depois) ──
+  const [testTel, setTestTel] = useState('11965236812');
+  const [testCanal, setTestCanal] = useState('CLICK_WHATSAPP');
   const [simulando, setSimulando] = useState('');
 
   // Dispara no nosso próprio endereço um lead no formato exato que o Grupo OLX
@@ -44,12 +47,12 @@ export default function LeadsClient({ initialLeads, initialWebhook, codigoExempl
           clientListingId: codigoExemplo,
           name: 'Lead de Teste',
           email: 'teste@exemplo.com',
-          ddd: '11',
-          phone: '965236812',
+          ddd: String(testTel).replace(/\D/g, '').slice(0, 2),
+          phone: String(testTel).replace(/\D/g, '').slice(2),
           message: 'Olá, gostaria de mais informações sobre este imóvel.',
           temperature: 'Alta',
           transactionType: 'RENT',
-          extraData: { leadType: 'CLICK_WHATSAPP' },
+          extraData: { leadType: testCanal },
         }),
       });
       setSimulando(r.ok ? 'ok' : 'erro');
@@ -201,13 +204,26 @@ export default function LeadsClient({ initialLeads, initialWebhook, codigoExempl
                   <button onClick={() => { navigator.clipboard?.writeText(webhookUrl); setCopiado(true); setTimeout(() => setCopiado(false), 1800); }}
                     style={{ padding: '11px 15px', borderRadius: 9, border: '1px solid rgba(243,237,227,.22)', background: 'transparent', color: copiado ? 'var(--green)' : 'var(--sand)', fontSize: 12.5 }}>{copiado ? 'Copiado ✓' : 'Copiar'}</button>
                 </div>
+                <div style={{ display: 'flex', gap: 7, marginTop: 9, flexWrap: 'wrap' }}>
+                  <input value={testTel} onChange={e => setTestTel(e.target.value.replace(/\D/g, ''))} placeholder="DDD + número, ex.: 11965236812" inputMode="numeric"
+                    style={{ flex: 1, minWidth: 150, background: 'var(--bg)', border: '1px solid rgba(243,237,227,.15)', borderRadius: 9, padding: '10px 13px', fontSize: 13, color: 'var(--cream)' }} />
+                  <select value={testCanal} onChange={e => setTestCanal(e.target.value)}
+                    style={{ flex: 1, minWidth: 150, background: 'var(--bg)', border: '1px solid rgba(243,237,227,.15)', borderRadius: 9, padding: '10px 13px', fontSize: 13, color: 'var(--cream)', appearance: 'auto' }}>
+                    <option value="CLICK_WHATSAPP">WhatsApp (clique no botão)</option>
+                    <option value="CONTACT_FORM">Formulário do portal</option>
+                    <option value="CONTACT_CHAT">Chat do portal</option>
+                    <option value="CLICK_SCHEDULE">Agendamento</option>
+                    <option value="VISIT_REQUEST">Pediu visita</option>
+                    <option value="PHONE_VIEW">Viu o telefone</option>
+                  </select>
+                </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 9, flexWrap: 'wrap' }}>
                   <button onClick={simularLead}
                     style={{ padding: '10px 15px', borderRadius: 9, border: `1px solid ${simulando === 'ok' ? 'var(--green)' : simulando === 'erro' ? '#c88a7a' : 'rgba(232,168,124,.45)'}`, background: 'transparent', fontSize: 12.5, fontWeight: 700, color: simulando === 'ok' ? 'var(--green)' : simulando === 'erro' ? '#c88a7a' : 'var(--accent)' }}>
                     {simulando === 'enviando' ? 'Enviando…' : simulando === 'ok' ? 'Funcionou ✓' : simulando === 'erro' ? 'Falhou' : 'Simular lead do portal'}
                   </button>
                   <span style={{ fontSize: 11.5, color: 'var(--muted)', flex: 1, minWidth: 160, lineHeight: 1.5 }}>
-                    Manda um lead falso no formato exato do Grupo OLX (imóvel {codigoExemplo}) e mostra na lista abaixo.
+                    Manda um lead falso no formato exato do Grupo OLX (imóvel {codigoExemplo}) com o telefone e o motivo escolhidos acima.
                   </span>
                 </div>
               </div>

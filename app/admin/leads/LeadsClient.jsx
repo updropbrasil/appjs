@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '../../../lib/supabase-browser';
-import { SITE_URL, LEAD_TOKEN } from '../../../lib/config';
+import { SITE_URL, LEAD_TOKEN, LEAD_SECRET_KEY } from '../../../lib/config';
 
 const CANAL = {
   CLICK_WHATSAPP: 'WhatsApp',
@@ -32,7 +32,11 @@ export default function LeadsClient({ initialLeads, initialWebhook, codigoExempl
     try {
       const r = await fetch(webhookUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          // mesma assinatura que o Grupo OLX envia — senão o teste leva 401 com a chave ativa
+          ...(LEAD_SECRET_KEY ? { Authorization: 'Basic ' + btoa('vivareal:' + LEAD_SECRET_KEY) } : {}),
+        },
         body: JSON.stringify({
           originLeadId: `teste-${Date.now()}`,
           leadOrigin: 'Grupo OLX',

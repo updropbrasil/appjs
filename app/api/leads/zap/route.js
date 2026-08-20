@@ -45,8 +45,8 @@ export function montarPayload({ body, codigo, imovel, telefone }) {
 
   // versão em texto, para a IA (nunca devolve vazio)
   const taxaTxt = (tipo, cents) => tipo === 'isento' ? 'isento'
-    : tipo === 'nao_informado' ? 'não informado — confirmar com o corretor'
-    : (cents ? formatPreco(cents) : 'não informado — confirmar com o corretor');
+    : tipo === 'nao_informado' ? 'não informado'
+    : (cents ? formatPreco(cents) : 'não informado');
 
   const fotos = (imovel?.imovel_fotos || [])
     .slice().sort((a, b) => (a.ordem || 0) - (b.ordem || 0))
@@ -88,10 +88,8 @@ export function montarPayload({ body, codigo, imovel, telefone }) {
     (Array.isArray(imovel.features) && imovel.features.length)
       ? `Características e lazer: ${imovel.features.join(', ')}`
       : 'Características e lazer: não informado',
-    imovel.descricao ? `Descrição do anúncio: ${String(imovel.descricao).replace(/\s+/g, ' ').trim()}` : null,
     link ? `Link do anúncio (com tour em vídeo): ${link}` : null,
     'Localização exata (rua e número): não revelar ao cliente antes da visita agendada.',
-    'Se o cliente perguntar algo que não está nesta lista, diga que vai confirmar com o corretor — nunca inventar.',
   ].filter(Boolean).join('\n') : null;
 
   return {
@@ -99,7 +97,8 @@ export function montarPayload({ body, codigo, imovel, telefone }) {
     origem: body.leadOrigin || 'Grupo OLX',
     canal: body.extraData?.leadType || null,
     temperatura: body.temperature || null,
-    transacao: body.transactionType || null,
+    // a finalidade real do imóvel manda — evita venda chegando como RENT
+    transacao: imovel ? (imovel.finalidade === 'venda' ? 'SALE' : 'RENT') : (body.transactionType || null),
     lead_certo: body.extraData?.leadCerto === true,
     nome,
     telefone: tel,
@@ -134,7 +133,6 @@ export function montarPayload({ body, codigo, imovel, telefone }) {
       ano_construcao: imovel.ano_construcao || null,
       mobilia: MOBILIA_LABELS[imovel.mobilia] || null,
       caracteristicas: Array.isArray(imovel.features) ? imovel.features : [],
-      descricao: imovel.descricao || null,
       video_youtube: imovel.youtube_url || null,
       video_arquivo: imovel.video_file_url || null,
       capa: imovel.capa_url || fotos[0] || null,

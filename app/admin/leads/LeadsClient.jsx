@@ -88,7 +88,6 @@ export default function LeadsClient({ initialLeads, initialWebhook, codigoExempl
       quartos: 3, suites: 2, banheiros: 4, vagas: 2, area_m2: 148,
       andar: '9º', ano_construcao: 2019, mobilia: 'Semimobiliado',
       caracteristicas: ['Piscina', 'Academia', 'Varanda gourmet', 'Portaria 24h'],
-      descricao: 'Vista permanente para o mar, varanda gourmet integrada e prédio com lazer completo.',
       video_youtube: 'https://www.youtube.com/shorts/EXEMPLO', video_arquivo: null,
       capa: null, fotos_qtd: 8,
       parceiro: null, parceiro_pct: null,
@@ -109,10 +108,8 @@ export default function LeadsClient({ initialLeads, initialWebhook, codigoExempl
         'Ano de construção: 2019',
         'Mobília: Semimobiliado',
         'Características e lazer: Piscina, Academia, Varanda gourmet, Portaria 24h',
-        'Descrição do anúncio: Vista permanente para o mar, varanda gourmet integrada e prédio com lazer completo.',
         `Link do anúncio (com tour em vídeo): ${linkExemplo}`,
         'Localização exata (rua e número): não revelar ao cliente antes da visita agendada.',
-        'Se o cliente perguntar algo que não está nesta lista, diga que vai confirmar com o corretor — nunca inventar.',
       ].join('\n'),
     };
     try {

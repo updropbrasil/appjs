@@ -42,6 +42,7 @@ export default function CadastroClient({ parceiros: parceirosIniciais, imovel, f
   const [novasFotos, setNovasFotos] = useState([]); // {file, preview}
   const [videoArquivo, setVideoArquivo] = useState(null); // {file, preview}
   const [videoPct, setVideoPct] = useState(0);
+  const [avisoVideo, setAvisoVideo] = useState('');
   const [dragIdx, setDragIdx] = useState(null);
   function onPickVideo(e) {
     const f = (e.target.files || [])[0];
@@ -183,16 +184,17 @@ export default function CadastroClient({ parceiros: parceirosIniciais, imovel, f
         imovelId = data.id;
       }
 
-      // upload do vídeo (se escolhido): tenta R2 (sem limite); senão Supabase (≤50 MB)
+      // upload do vídeo (se escolhido): direto pro Cloudflare R2 (sem limite)
       if (form.videoMode === 'arquivo' && videoArquivo) {
-        let videoUrl = null;
+        let videoUrl = null; let motivo = '';
         try {
           videoUrl = await uploadToR2(videoArquivo.file, setVideoPct);
+          if (!videoUrl) motivo = 'Cloudflare R2 não configurado no servidor';
         } catch (e) {
-          setErro('Falha ao enviar pro Cloudflare (confira o CORS do bucket). Tentando pelo Supabase…');
+          motivo = e?.message || 'falha no envio pro Cloudflare';
         }
-        if (!videoUrl) {
-          // fallback Supabase — limite de 50 MB
+        // fallback Supabase só faz sentido para arquivos pequenos (≤ 45 MB)
+        if (!videoUrl && videoArquivo.file.size <= 45 * 1024 * 1024) {
           const ext = (videoArquivo.file.name.split('.').pop() || 'mp4');
           const path = `${imovelId}/tour-${Date.now()}.${ext}`;
           const { error: vErr } = await supabase.storage.from('imoveis-videos').upload(path, videoArquivo.file, { upsert: true, contentType: videoArquivo.file.type });
@@ -201,7 +203,12 @@ export default function CadastroClient({ parceiros: parceirosIniciais, imovel, f
             videoUrl = pub.publicUrl;
           }
         }
-        if (videoUrl) await supabase.from('imoveis').update({ video_file_url: videoUrl }).eq('id', imovelId);
+        if (videoUrl) {
+          await supabase.from('imoveis').update({ video_file_url: videoUrl }).eq('id', imovelId);
+          setAvisoVideo('');
+        } else {
+          setAvisoVideo(`O vídeo NÃO subiu (${motivo}). O anúncio foi salvo sem vídeo — abra “Editar” e envie de novo.`);
+        }
         setVideoPct(0);
       }
 
@@ -466,13 +473,13 @@ export default function CadastroClient({ parceiros: parceirosIniciais, imovel, f
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--muted)', fontSize: 12 }}>
                     <span style={{ flex: 1, height: 1, background: 'var(--line)' }}></span>ou<span style={{ flex: 1, height: 1, background: 'var(--line)' }}></span>
                   </div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--taupe)' }}>OPÇÃO B — Subir do celular (até 50 MB)</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--taupe)' }}>OPÇÃO B — Subir do celular · direto pro Cloudflare</div>
                   {!videoArquivo && (
                     <label style={{ position: 'relative', border: '2px dashed rgba(232,168,124,.4)', borderRadius: 14, padding: '24px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, color: 'var(--accent)', cursor: 'pointer', background: 'rgba(232,168,124,.05)' }}>
                       <input type="file" accept="video/*" onChange={onPickVideo} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} />
                       <span style={{ fontSize: 24 }}>↑</span>
                       <span style={{ fontSize: 14, fontWeight: 700 }}>Subir vídeo do celular</span>
-                      <span style={{ fontSize: 11.5, color: 'var(--taupe)' }}>Só clipes curtos — limite de 50 MB</span>
+                      <span style={{ fontSize: 11.5, color: 'var(--taupe)' }}>Aceita os tours grandes (100 MB+). Deixe o app aberto até chegar em 100%.</span>
                     </label>
                   )}
                   {videoArquivo && (
@@ -572,6 +579,9 @@ export default function CadastroClient({ parceiros: parceirosIniciais, imovel, f
 
           {step === 6 && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, paddingTop: 60, textAlign: 'center' }}>
+              {avisoVideo && (
+                <div style={{ textAlign: 'left', fontSize: 12.5, color: '#e8a79a', background: 'rgba(200,138,122,.1)', border: '1px solid rgba(200,138,122,.35)', borderRadius: 12, padding: '12px 14px', lineHeight: 1.55 }}>⚠️ {avisoVideo}</div>
+              )}
               <div style={{ width: 72, height: 72, borderRadius: 999, background: 'rgba(168,192,143,.15)', border: '1px solid rgba(168,192,143,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30, color: 'var(--green)' }}>✓</div>
               <h2 style={{ ...h2, fontSize: 26 }}>{editando ? 'Alterações salvas!' : 'Anúncio publicado!'}</h2>
               <p style={{ fontSize: 14, color: 'var(--taupe)', maxWidth: 280, lineHeight: 1.55 }}>{form.titulo || seoTitle} já está no ar em {form.bairro || 'João Pessoa'}.</p>

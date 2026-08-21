@@ -67,10 +67,10 @@ export default function GestaoClient({ initialImoveis, initialParceiros, initial
     e.target.value = '';
     if (!f) return;
     setHeroUploading(true);
-    let url = null;
-    // tenta R2 (sem limite); senão Supabase (≤50 MB)
-    try { url = await uploadToR2(f); } catch (err) { url = null; }
-    if (!url) {
+    let url = null; let motivo = '';
+    // direto pro Cloudflare R2 (sem limite); Supabase só para arquivos pequenos
+    try { url = await uploadToR2(f); if (!url) motivo = 'Cloudflare R2 não configurado'; } catch (err) { url = null; motivo = err?.message || 'falha no envio'; }
+    if (!url && f.size <= 45 * 1024 * 1024) {
       const ext = (f.name.split('.').pop() || 'mp4');
       const path = `hero/home-${Date.now()}.${ext}`;
       const { error } = await supabase.storage.from('imoveis-videos').upload(path, f, { upsert: true, contentType: f.type });
@@ -80,7 +80,7 @@ export default function GestaoClient({ initialImoveis, initialParceiros, initial
       await supabase.from('site_config').upsert({ key: 'hero_video_file', value: url });
       setHeroFileUrl(url);
     } else {
-      alert('Não consegui subir o vídeo. Se for maior que 50 MB, configure o Cloudflare R2 (veja GUIA-VIDEO-R2.md).');
+      alert(`Não consegui subir o vídeo: ${motivo || 'erro desconhecido'}. Tente de novo — se persistir, confira o CORS do bucket R2.`);
     }
     setHeroUploading(false);
   }
@@ -212,11 +212,11 @@ export default function GestaoClient({ initialImoveis, initialParceiros, initial
                   </div>
                   <label style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 8, padding: '11px 16px', borderRadius: 10, border: '1px dashed rgba(232,168,124,.5)', color: 'var(--accent)', fontSize: 13, fontWeight: 700, cursor: 'pointer', background: 'rgba(232,168,124,.05)' }}>
                     <input type="file" accept="video/*" onChange={subirHeroFile} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} />
-                    {heroUploading ? 'Enviando…' : '↑ Subir do celular (até 50 MB)'}
+                    {heroUploading ? 'Enviando…' : '↑ Subir do celular'}
                   </label>
                 </>
               )}
-              <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 6 }}>Cole um link .mp4 (Cloudflare R2, grátis e sem limite) para o vídeo rodar sozinho até no iPhone. O upload direto tem limite de 50 MB.</div>
+              <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 6 }}>O vídeo sobe direto pro Cloudflare (sem limite de tamanho) e roda sozinho até no iPhone. Ou cole um link .mp4 pronto.</div>
             </div>
           </div>
 

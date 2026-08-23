@@ -40,6 +40,7 @@ export default function CadastroClient({ parceiros: parceirosIniciais, imovel, f
   }
   const [wide, setWide] = useState(false);
   const [novasFotos, setNovasFotos] = useState([]); // {file, preview}
+  const [fotosSalvas, setFotosSalvas] = useState(fotosIniciais || []); // fotos já no banco (edição)
   const [videoArquivo, setVideoArquivo] = useState(null); // {file, preview}
   const [videoPct, setVideoPct] = useState(0);
   const [avisoVideo, setAvisoVideo] = useState('');
@@ -61,6 +62,21 @@ export default function CadastroClient({ parceiros: parceirosIniciais, imovel, f
   }
   function removeFoto(i) {
     setNovasFotos(list => list.filter((_, j) => j !== i));
+  }
+  async function apagarFotoSalva(f) {
+    if (!window.confirm('Apagar esta foto do anúncio?')) return;
+    const { error } = await supabase.from('imovel_fotos').delete().eq('id', f.id);
+    if (error) { alert('Não consegui apagar: ' + error.message); return; }
+    setFotosSalvas(list => list.filter(x => x.id !== f.id));
+  }
+  function moveFotoSalva(from, to) {
+    if (to < 0 || to >= fotosSalvas.length || from === to) return;
+    setFotosSalvas(list => {
+      const arr = [...list];
+      const [it] = arr.splice(from, 1);
+      arr.splice(to, 0, it);
+      return arr;
+    });
   }
   const [form, setForm] = useState(() => imovel ? {
     finalidade: imovel.finalidade, categoria: imovel.categoria, titulo: imovel.titulo,
@@ -100,7 +116,7 @@ export default function CadastroClient({ parceiros: parceirosIniciais, imovel, f
   }, [form.finalidade]);
 
   // capa que a prévia mostra: vídeo do YouTube → foto nova → foto já salva → capa do imóvel
-  const foto1 = novasFotos[0]?.preview || (fotosIniciais || [])[0]?.url || (fotosIniciais || [])[0]?.thumb_url || '';
+  const foto1 = novasFotos[0]?.preview || fotosSalvas[0]?.url || fotosSalvas[0]?.thumb_url || '';
   const capaPreview = (vid ? ytThumb(vid) : '') || foto1 || imovel?.capa_url || '';
   const capaBg = capaPreview ? `url("${capaPreview}") center/cover` : '#463928';
   const videoPreviewUrl = videoArquivo?.preview
@@ -113,8 +129,40 @@ export default function CadastroClient({ parceiros: parceirosIniciais, imovel, f
     cep: form.cep, endereco: form.endereco, numero: form.numero,
     area_m2: form.area, youtube_url: form.videoMode === 'link' ? form.video : '',
     features: form.features, ano_construcao: form.ano,
-    imovel_fotos: [...(fotosIniciais || []).map(f => ({ url: f.url })), ...novasFotos.map((_, i) => ({ url: `https://x/${i}.jpg` }))],
+    imovel_fotos: [...fotosSalvas.map(f => ({ url: f.url })), ...novasFotos.map((_, i) => ({ url: `https://x/${i}.jpg` }))],
   });
+
+  function gerarDescricao() {
+    const isAlq = form.finalidade === 'aluguel';
+    const l = [];
+    l.push(`${form.categoria} ${isAlq ? 'para alugar' : 'à venda'} no ${form.bairro || 'bairro'}, em João Pessoa${form.referencia ? ` — ${form.referencia}` : ''}.`);
+    l.push('');
+    if (Number(form.quartos)) l.push(`✅ ${form.quartos} quarto${form.quartos > 1 ? 's' : ''}${Number(form.suites) ? ` (${form.suites} suíte${form.suites > 1 ? 's' : ''})` : ''}`);
+    if (Number(form.banheiros)) l.push(`✅ ${form.banheiros} banheiro${form.banheiros > 1 ? 's' : ''}`);
+    if (Number(form.vagas)) l.push(`✅ ${form.vagas} vaga${form.vagas > 1 ? 's' : ''} de garagem`);
+    if (form.area) l.push(`✅ ${form.area} m²`);
+    if (form.andar) l.push(`✅ ${/térreo/i.test(form.andar) ? 'Térreo' : form.andar + ' andar'}`);
+    const mob = { mobiliado: 'Mobiliado', semi: 'Semimobiliado', planejados: 'Com móveis planejados' }[form.mobilia];
+    if (mob) l.push(`✅ ${mob}`);
+    (form.features || []).forEach(f => l.push(`✅ ${f}`));
+    l.push('');
+    if (isAlq) {
+      const extras = [];
+      if (form.condominio_tipo === 'isento') extras.push('condomínio isento');
+      else if (form.condominio_tipo === 'valor' && form.condominio) extras.push(`condomínio R$ ${maskThousands(form.condominio)}`);
+      if (form.iptu_tipo === 'isento') extras.push('IPTU isento');
+      else if (form.iptu_tipo === 'valor' && form.iptu) extras.push(`IPTU R$ ${maskThousands(form.iptu)}`);
+      l.push(`💰 Aluguel: R$ ${maskThousands(form.preco)}/mês${extras.length ? ` (${extras.join(' · ')})` : ''}`);
+    } else {
+      l.push(`💰 Valor: R$ ${maskThousands(form.preco)}`);
+    }
+    l.push(`📍 ${form.bairro || ''}, João Pessoa – PB`);
+    const cod = (form.codigo || '').trim().toUpperCase() || codigoSugerido;
+    if (cod) l.push(`🔖 Código: ${cod}`);
+    l.push('');
+    l.push('📲 Fale com a gente no WhatsApp e agende sua visita!');
+    set({ descricao: l.join('\n') });
+  }
 
   function addFotos(e) {
     const files = Array.from(e.target.files || []);
@@ -223,6 +271,7 @@ export default function CadastroClient({ parceiros: parceirosIniciais, imovel, f
           url = await uploadToR2(new File([blob], `foto-${i}.jpg`, { type: 'image/jpeg' }), null, 'fotos');
           thumbUrl = await uploadToR2(new File([thumbBlob], `thumb-${i}.jpg`, { type: 'image/jpeg' }), null, 'fotos');
           if (wideBlob) wideUrl = await uploadToR2(new File([wideBlob], `wide-${i}.jpg`, { type: 'image/jpeg' }), null, 'fotos');
+          if (url) path = url; // path nunca pode ser nulo (coluna not null no banco original)
         } catch (e) { url = null; }
         if (!url) {
           path = `${imovelId}/${Date.now()}-${i}.jpg`;
@@ -232,7 +281,16 @@ export default function CadastroClient({ parceiros: parceirosIniciais, imovel, f
           url = pub.publicUrl;
         }
         if (!primeiraFotoUrl) primeiraFotoUrl = thumbUrl || url;
-        await supabase.from('imovel_fotos').insert({ imovel_id: imovelId, path, url, thumb_url: thumbUrl, wide_url: wideUrl, ordem: i });
+        // grava a foto; se o banco não tiver as colunas novas, regrava só com as básicas
+        let { error: fErr } = await supabase.from('imovel_fotos').insert({ imovel_id: imovelId, path, url, thumb_url: thumbUrl, wide_url: wideUrl, ordem: fotosSalvas.length + i });
+        if (fErr) {
+          const retry = await supabase.from('imovel_fotos').insert({ imovel_id: imovelId, path, url, ordem: fotosSalvas.length + i });
+          if (retry.error) throw new Error(`Foto ${i + 1} não foi registrada: ${retry.error.message}`);
+        }
+      }
+      // persiste a ordem das fotos já salvas (reordenadas na edição)
+      for (let i = 0; i < fotosSalvas.length; i++) {
+        if (fotosSalvas[i].ordem !== i) await supabase.from('imovel_fotos').update({ ordem: i }).eq('id', fotosSalvas[i].id);
       }
       // se não é YouTube e ainda não tem capa, usa a 1ª foto como capa/poster
       if (form.videoMode === 'arquivo' && primeiraFotoUrl) {
@@ -490,9 +548,18 @@ export default function CadastroClient({ parceiros: parceirosIniciais, imovel, f
                   )}
                 </Field>
               )}
-              <Field label={`Fotos (${fotosIniciais.length + novasFotos.length})`}>
+              <Field label={`Fotos (${fotosSalvas.length + novasFotos.length})`}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-                  {fotosIniciais.map(f => <div key={f.id} style={{ aspectRatio: 1, borderRadius: 12, background: `url("${f.url}") center/cover` }} />)}
+                  {fotosSalvas.map((f, i) => (
+                    <div key={f.id} style={{ position: 'relative', aspectRatio: 1, borderRadius: 12, background: `url("${f.thumb_url || f.url}") center/cover` }}>
+                      <span style={{ position: 'absolute', top: 5, left: 5, background: 'rgba(31,24,18,.8)', color: 'var(--cream)', fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 5 }}>{i === 0 && !vid ? 'CAPA' : i + 1}</span>
+                      <div style={{ position: 'absolute', bottom: 5, left: 5, right: 5, display: 'flex', justifyContent: 'space-between' }}>
+                        <button onClick={() => moveFotoSalva(i, i - 1)} disabled={i === 0} style={fotoNav(i === 0)}>‹</button>
+                        <button onClick={() => apagarFotoSalva(f)} style={{ ...fotoNav(false), color: '#e8a79a' }}>×</button>
+                        <button onClick={() => moveFotoSalva(i, i + 1)} disabled={i === fotosSalvas.length - 1} style={fotoNav(i === fotosSalvas.length - 1)}>›</button>
+                      </div>
+                    </div>
+                  ))}
                   {novasFotos.map((f, i) => (
                     <div key={i}
                       draggable
@@ -513,10 +580,12 @@ export default function CadastroClient({ parceiros: parceirosIniciais, imovel, f
                     <span style={{ fontSize: 24 }}>+</span><span style={{ fontSize: 11.5 }}>Adicionar</span>
                   </label>
                 </div>
-                <Hint>Arraste para reordenar (ou use ‹ ›). A 1ª foto é a capa.</Hint>
+                <Hint>Arraste para reordenar (ou use ‹ ›). A 1ª foto é a capa. O × nas fotos já salvas apaga na hora; a ordem vale para o site e para o portal.</Hint>
               </Field>
               <Field label="Descrição (opcional)">
-                <textarea value={form.descricao} onChange={e => set({ descricao: e.target.value })} rows={4} placeholder="Detalhes do imóvel…" style={{ ...inp, resize: 'vertical' }} />
+                <button onClick={gerarDescricao} style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(232,168,124,.12)', border: '1px solid rgba(232,168,124,.45)', color: 'var(--accent)', padding: '10px 16px', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>✦ Gerar descrição com o que já preenchi</button>
+                <textarea value={form.descricao} onChange={e => set({ descricao: e.target.value })} rows={10} placeholder="Detalhes do imóvel… (ou toque em Gerar descrição)" style={{ ...inp, resize: 'vertical' }} />
+                <Hint>Gera um rascunho a partir das informações do anúncio — revise e ajuste à vontade antes de salvar.</Hint>
               </Field>
             </>
           )}

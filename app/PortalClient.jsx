@@ -41,10 +41,18 @@ export default function PortalClient({ imoveis, heroVideo, heroVideoFile }) {
 
   const num = (v) => { const n = String(v).replace(/\D/g, ''); return n ? Number(n) : null; };
   const pMin = num(fMin), pMax = num(fMax), bairroQ = fBairro.trim().toLowerCase();
+  // busca por código no mesmo campo: aceita jdv-1019, jdv1019 ou só 1019
+  const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const codQ = norm(bairroQ);
+  const matchImovel = (i) => {
+    if (!bairroQ) return true;
+    if ((i.bairro || '').toLowerCase().includes(bairroQ)) return true;
+    return !!codQ && norm(i.codigo).includes(codQ);
+  };
 
   const lista = useMemo(() => imoveis
     .filter(i => filter === 'todos' || i.finalidade === filter)
-    .filter(i => !bairroQ || (i.bairro || '').toLowerCase().includes(bairroQ))
+    .filter(matchImovel)
     .filter(i => fTipo === 'todos' || i.categoria === fTipo)
     .filter(i => pMin == null || i.preco_cents >= pMin * 100)
     .filter(i => pMax == null || i.preco_cents <= pMax * 100)
@@ -123,6 +131,11 @@ export default function PortalClient({ imoveis, heroVideo, heroVideoFile }) {
                 </div>
 
                 <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+                  <div style={buscaLabel}>BAIRRO OU CÓDIGO</div>
+                  <input value={fBairro} onChange={e => setFBairro(e.target.value)} placeholder={isMobile ? 'Bairro ou JDV1019' : 'ex.: Cabo Branco ou JDV1019'} style={buscaField} enterKeyHint="search" onKeyDown={e => { if (e.key === 'Enter') goToList(filter); }} />
+                </div>
+
+                <div style={{ flex: '1 1 200px', minWidth: 0 }}>
                   <div style={buscaLabel}>TIPO DE IMÓVEL</div>
                   <select value={fTipo} onChange={e => setFTipo(e.target.value)} style={buscaField}>
                     <option value="todos">Todos os tipos</option>
@@ -181,8 +194,8 @@ export default function PortalClient({ imoveis, heroVideo, heroVideoFile }) {
 
         {showFilters && (
           <div style={{ background: 'var(--bg-2)', border: '1px solid rgba(243,237,227,.1)', borderRadius: 16, padding: 20, marginBottom: 22, display: 'flex', flexDirection: 'column', gap: 18 }}>
-            <Group label="BAIRRO">
-              <input value={fBairro} onChange={e => setFBairro(e.target.value)} placeholder="Digite o bairro… ex.: Cabo Branco" style={inp} />
+            <Group label="BAIRRO OU CÓDIGO">
+              <input value={fBairro} onChange={e => setFBairro(e.target.value)} placeholder="Bairro ou código… ex.: Cabo Branco, JDV1019" style={inp} />
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 9 }}>
                 {BAIRROS.map(b => <button key={b} onClick={() => setFBairro(fBairro.toLowerCase() === b.toLowerCase() ? '' : b)} style={chip(fBairro.toLowerCase() === b.toLowerCase())}>{b}</button>)}
               </div>

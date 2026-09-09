@@ -34,7 +34,12 @@ export async function GET(req) {
   const limite = Math.min(num(searchParams.get('limite')) || 8, 25);
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  let q = supabase.from('imoveis').select('*').eq('status', 'ativo');
+  const status = (searchParams.get('status') || 'ativo').toLowerCase(); // ativo | pausado | todos
+  let q = supabase.from('imoveis').select('*');
+  if (status !== 'todos') q = q.eq('status', status === 'pausado' ? 'pausado' : 'ativo');
+  // consulta direta por código (?codigo=JDV1019) — ignora o filtro de status
+  const codigoQ = searchParams.get('codigo');
+  if (codigoQ) q = supabase.from('imoveis').select('*').ilike('codigo', `%${codigoQ.replace(/[^a-z0-9]/gi, '').replace(/^([a-z]+)(\d+)$/i, '$1%$2')}%`);
 
   if (finalidade === 'aluguel' || finalidade === 'venda') q = q.eq('finalidade', finalidade);
   if (min) q = q.gte('preco_cents', min * 100);
@@ -56,13 +61,15 @@ export async function GET(req) {
 
   const imoveis = lista.map(i => ({
     codigo: i.codigo,
+    status: i.status,                       // 'ativo' | 'pausado'
+    disponivel: i.status === 'ativo',
     titulo: i.titulo,
     finalidade: i.finalidade,
     categoria: i.categoria,
     bairro: i.bairro,
     preco: i.preco_cents ? i.preco_cents / 100 : null,
     preco_formatado: i.preco_cents ? `${formatPreco(i.preco_cents)}${i.finalidade === 'aluguel' ? '/mês' : ''}` : null,
-    condominio: i.condominio_tipo === 'isento' ? 'Isento' : (i.condominio_tipo === 'nao_informado' ? null : (i.condominio_cents ? i.condominio_cents / 100 : null)),
+    condominio: i.condominio_tipo === 'isento' ? 'Isento' : (i.condominio_tipo === 'incluso' ? 'Incluso no aluguel' : (i.condominio_tipo === 'nao_informado' ? null : (i.condominio_cents ? i.condominio_cents / 100 : null))),
     quartos: i.quartos ?? null,
     suites: i.suites ?? null,
     banheiros: i.banheiros ?? null,

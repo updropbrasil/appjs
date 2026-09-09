@@ -40,7 +40,7 @@ export async function GET() {
   return new Response(xml, {
     headers: {
       'Content-Type': 'application/xml; charset=utf-8',
-      'Cache-Control': 'public, max-age=1800',
+      'Cache-Control': 'no-store', // pause/despause reflete na hora na próxima sincronização do portal
     },
   });
 }

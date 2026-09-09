@@ -48,6 +48,7 @@ export default function DetailClient({ im, precoFmt }) {
   const wa = whatsappLink(`Olá! Tenho interesse no imóvel ${im.codigo ? `(cód. ${im.codigo}) ` : ''}"${im.titulo}" no ${im.bairro}. Pode me passar mais informações?`);
 
   const taxa = (tipo, cents) => tipo === 'isento' ? 'Isento'
+    : tipo === 'incluso' ? 'Incluso no aluguel'
     : tipo === 'nao_informado' ? null
     : (cents ? formatPreco(cents) : null);
 

@@ -40,11 +40,13 @@ export function montarPayload({ body, codigo, imovel, telefone }) {
 
   // 'Isento' | null (não informado) | valor em reais
   const taxa = (tipo, cents) => tipo === 'isento' ? 'Isento'
+    : tipo === 'incluso' ? 'Incluso no aluguel'
     : tipo === 'nao_informado' ? null
     : (cents ? cents / 100 : null);
 
   // versão em texto, para a IA (nunca devolve vazio)
   const taxaTxt = (tipo, cents) => tipo === 'isento' ? 'isento'
+    : tipo === 'incluso' ? 'incluso no valor do aluguel'
     : tipo === 'nao_informado' ? 'não informado'
     : (cents ? formatPreco(cents) : 'não informado');
 
@@ -70,7 +72,9 @@ export function montarPayload({ body, codigo, imovel, telefone }) {
   // Bloco de texto para a IA usar como contexto ao responder o cliente.
   // Escrito em linguagem natural e dizendo o que NÃO sabemos, para a IA
   // não inventar informação (o que geraria visita frustrada).
+  const disponivel = !imovel || imovel.status === 'ativo';
   const contextoIa = imovel ? [
+    disponivel ? null : `⚠️ ATENÇÃO: ESTE IMÓVEL JÁ FOI ${imovel.finalidade === 'aluguel' ? 'ALUGADO' : 'VENDIDO'} — NÃO ESTÁ MAIS DISPONÍVEL. Informe o cliente e ofereça opções semelhantes.`,
     `IMÓVEL ${imovel.codigo || ''} — ${imovel.titulo}`.trim(),
     `Finalidade: ${imovel.finalidade === 'aluguel' ? 'para alugar' : 'à venda'}`,
     `Tipo: ${imovel.categoria || 'não informado'}`,
@@ -108,8 +112,12 @@ export function montarPayload({ body, codigo, imovel, telefone }) {
     email: body.email || null,
     mensagem_lead: body.message || null,
     codigo_imovel: codigo,
+    // false = pausado (alugado/vendido) — use no n8n para a IA não oferecer imóvel que já saiu
+    imovel_disponivel: disponivel,
     imovel: imovel ? {
       codigo: imovel.codigo,
+      status: imovel.status,
+      disponivel,
       titulo: imovel.titulo,
       link,
       finalidade: imovel.finalidade,

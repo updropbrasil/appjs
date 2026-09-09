@@ -149,8 +149,10 @@ export default function CadastroClient({ parceiros: parceirosIniciais, imovel, f
     if (isAlq) {
       const extras = [];
       if (form.condominio_tipo === 'isento') extras.push('condomínio isento');
+      else if (form.condominio_tipo === 'incluso') extras.push('condomínio incluso');
       else if (form.condominio_tipo === 'valor' && form.condominio) extras.push(`condomínio R$ ${maskThousands(form.condominio)}`);
       if (form.iptu_tipo === 'isento') extras.push('IPTU isento');
+      else if (form.iptu_tipo === 'incluso') extras.push('IPTU incluso');
       else if (form.iptu_tipo === 'valor' && form.iptu) extras.push(`IPTU R$ ${maskThousands(form.iptu)}`);
       l.push(`💰 Aluguel: R$ ${maskThousands(form.preco)}/mês${extras.length ? ` (${extras.join(' · ')})` : ''}`);
     } else {
@@ -202,8 +204,8 @@ export default function CadastroClient({ parceiros: parceirosIniciais, imovel, f
         quartos: Number(form.quartos), suites: Number(form.suites), banheiros: Number(form.banheiros),
         vagas: Number(form.vagas), area_m2: form.area ? Number(String(form.area).replace(/\D/g, '')) : null, andar: form.andar || null,
         preco_cents: parsePreco(form.preco),
-        condominio_cents: form.condominio_tipo === 'valor' ? parsePreco(form.condominio) : (form.condominio_tipo === 'isento' ? 0 : null),
-        iptu_cents: form.iptu_tipo === 'valor' ? parsePreco(form.iptu) : (form.iptu_tipo === 'isento' ? 0 : null),
+        condominio_cents: form.condominio_tipo === 'valor' ? parsePreco(form.condominio) : (form.condominio_tipo === 'nao_informado' ? null : 0),
+        iptu_cents: form.iptu_tipo === 'valor' ? parsePreco(form.iptu) : (form.iptu_tipo === 'nao_informado' ? null : 0),
         condominio_tipo: form.condominio_tipo || 'valor', iptu_tipo: form.iptu_tipo || 'valor',
         youtube_url: (form.videoMode === 'link' && form.video) ? form.video : null,
         video_id: (form.videoMode === 'link' && vid) ? vid : null,
@@ -291,6 +293,11 @@ export default function CadastroClient({ parceiros: parceirosIniciais, imovel, f
       // persiste a ordem das fotos já salvas (reordenadas na edição)
       for (let i = 0; i < fotosSalvas.length; i++) {
         if (fotosSalvas[i].ordem !== i) await supabase.from('imovel_fotos').update({ ordem: i }).eq('id', fotosSalvas[i].id);
+      }
+      // a capa do card acompanha a foto nº 1 (sem isso, reordenar não muda a capa)
+      if (fotosSalvas.length) {
+        const c = fotosSalvas[0].thumb_url || fotosSalvas[0].url;
+        if (c && c !== imovel?.capa_url) await supabase.from('imoveis').update({ capa_url: c }).eq('id', imovelId);
       }
       // se não é YouTube e ainda não tem capa, usa a 1ª foto como capa/poster
       if (form.videoMode === 'arquivo' && primeiraFotoUrl) {
@@ -454,9 +461,9 @@ export default function CadastroClient({ parceiros: parceirosIniciais, imovel, f
                 </div>
               </Field>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <TaxaField label="Condomínio" tipo={form.condominio_tipo} valor={form.condominio}
+                <TaxaField label="Condomínio" tipo={form.condominio_tipo} valor={form.condominio} aluguel={isAluguel}
                   onTipo={t => set({ condominio_tipo: t })} onValor={v => set({ condominio: v })} />
-                <TaxaField label="IPTU" tipo={form.iptu_tipo} valor={form.iptu}
+                <TaxaField label="IPTU" tipo={form.iptu_tipo} valor={form.iptu} aluguel={isAluguel}
                   onTipo={t => set({ iptu_tipo: t })} onValor={v => set({ iptu: v })} />
               </div>
               <div style={{ background: 'rgba(232,168,124,.06)', border: '1px solid rgba(232,168,124,.22)', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -715,9 +722,9 @@ const fotoNav = (disabled) => ({ width: 26, height: 26, borderRadius: 7, border:
 function Label({ children }) { return <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--sand)', marginTop: 6 }}>{children}</div>; }
 function Hint({ children }) { return <span style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>{children}</span>; }
 function Field({ label, children }) { return <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}><span style={{ fontSize: 13, fontWeight: 700, color: 'var(--sand)' }}>{label}</span>{children}</div>; }
-function TaxaField({ label, tipo, valor, onTipo, onValor }) {
-  const t = tipo || 'valor';
-  const opts = [['valor', 'Valor'], ['isento', 'Isento'], ['nao_informado', 'Não sei']];
+function TaxaField({ label, tipo, valor, onTipo, onValor, aluguel }) {
+  const t = (tipo === 'incluso' && !aluguel) ? 'isento' : (tipo || 'valor');
+  const opts = [['valor', 'Valor'], ...(aluguel ? [['incluso', 'Incluso']] : [['isento', 'Isento']]), ['nao_informado', 'Não sei']];
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--sand)' }}>{label}</span>
@@ -733,6 +740,7 @@ function TaxaField({ label, tipo, valor, onTipo, onValor }) {
         </div>
       )}
       {t === 'isento' && <Hint>Aparece como <strong style={{ color: 'var(--green)' }}>Isento</strong> no anúncio.</Hint>}
+      {t === 'incluso' && <Hint>Aparece como <strong style={{ color: 'var(--green)' }}>Incluso no aluguel</strong> — o valor já está dentro do preço.</Hint>}
       {t === 'nao_informado' && <Hint>Não aparece no anúncio — sem prometer valor que não sabemos.</Hint>}
     </div>
   );

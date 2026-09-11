@@ -155,6 +155,7 @@ export default function CadastroClient({ parceiros: parceirosIniciais, imovel, f
       else if (form.iptu_tipo === 'incluso') extras.push('IPTU incluso');
       else if (form.iptu_tipo === 'valor' && form.iptu) extras.push(`IPTU R$ ${maskThousands(form.iptu)}`);
       l.push(`💰 Aluguel: R$ ${maskThousands(form.preco)}/mês${extras.length ? ` (${extras.join(' · ')})` : ''}`);
+      l.push('ℹ️ Valores de condomínio e IPTU são informativos e podem sofrer alterações.');
     } else {
       l.push(`💰 Valor: R$ ${maskThousands(form.preco)}`);
     }
@@ -724,7 +725,7 @@ function Hint({ children }) { return <span style={{ fontSize: 12, color: 'var(--
 function Field({ label, children }) { return <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}><span style={{ fontSize: 13, fontWeight: 700, color: 'var(--sand)' }}>{label}</span>{children}</div>; }
 function TaxaField({ label, tipo, valor, onTipo, onValor, aluguel }) {
   const t = (tipo === 'incluso' && !aluguel) ? 'isento' : (tipo || 'valor');
-  const opts = [['valor', 'Valor'], ...(aluguel ? [['incluso', 'Incluso']] : [['isento', 'Isento']]), ['nao_informado', 'Não sei']];
+  const opts = [['valor', 'Valor'], ...(aluguel ? [['incluso', 'Incluso']] : [['isento', 'Isento']]), ['nao_informado', 'Não informar']];
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--sand)' }}>{label}</span>

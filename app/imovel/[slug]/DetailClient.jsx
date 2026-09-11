@@ -134,6 +134,9 @@ export default function DetailClient({ im, precoFmt }) {
             </div>
 
             <a href={wa} target="_blank" rel="noopener" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, background: 'var(--accent)', color: '#2A2117', padding: 16, borderRadius: 12, fontSize: 15.5, fontWeight: 700, maxWidth: 440 }}>Tenho interesse — falar no WhatsApp</a>
+            <p style={{ fontSize: 12, lineHeight: 1.55, color: 'var(--muted)', margin: 0, maxWidth: 440 }}>
+              Valores de condomínio e IPTU são informativos e podem sofrer alterações ou conter imprecisões. Imóvel sujeito a disponibilidade.
+            </p>
           </div>
         </div>
       </div>

@@ -45,6 +45,7 @@ export function montarPayload({ body, codigo, imovel, telefone }) {
     : (cents ? cents / 100 : null);
 
   // versão em texto, para a IA (nunca devolve vazio)
+  const utilTxt = (t) => t === 'incluso' ? 'inclusa no aluguel' : (t === 'individual' ? 'medição individual (paga à parte)' : 'não informado');
   const taxaTxt = (tipo, cents) => tipo === 'isento' ? 'isento'
     : tipo === 'incluso' ? 'incluso no valor do aluguel'
     : tipo === 'nao_informado' ? 'não informado'
@@ -82,6 +83,9 @@ export function montarPayload({ body, codigo, imovel, telefone }) {
     `Valor: ${precoFmt || 'não informado'}`,
     `Condomínio: ${taxaTxt(imovel.condominio_tipo, imovel.condominio_cents)}`,
     `IPTU: ${taxaTxt(imovel.iptu_tipo, imovel.iptu_cents)}`,
+    imovel.condominio_inclui ? `O condomínio inclui: ${imovel.condominio_inclui}` : null,
+    `Água: ${utilTxt(imovel.agua_tipo)}`,
+    `Gás: ${utilTxt(imovel.gas_tipo)}`,
     imovel.area_m2 ? `Área: ${imovel.area_m2} m²` : 'Área: não informada',
     imovel.quartos ? `Quartos: ${imovel.quartos}${imovel.suites ? ` (sendo ${imovel.suites} suíte${imovel.suites > 1 ? 's' : ''})` : ''}` : null,
     imovel.banheiros ? `Banheiros: ${imovel.banheiros}` : null,
@@ -94,6 +98,9 @@ export function montarPayload({ body, codigo, imovel, telefone }) {
       : 'Características e lazer: não informado',
     link ? `Link do anúncio (com tour em vídeo): ${link}` : null,
     'Localização exata (rua e número): não revelar ao cliente antes da visita agendada.',
+    imovel.captacao === 'parceiro'
+      ? `[INTERNO — não repassar ao cliente] Captação de parceiro: ${imovel.parceiro_nome || 'sem nome'}${imovel.parceiro_whatsapp ? ` · WhatsApp ${imovel.parceiro_whatsapp}` : ''}. Visitas e propostas passam pelo parceiro.`
+      : '[INTERNO] Captação própria.',
   ].filter(Boolean).join('\n') : null;
 
   return {
@@ -147,6 +154,11 @@ export function montarPayload({ body, codigo, imovel, telefone }) {
       fotos_qtd: fotos.length,
       parceiro: imovel.parceiros?.nome || null,
       parceiro_pct: imovel.parceiro_pct ?? null,
+      condominio_inclui: imovel.condominio_inclui || null,
+      agua: utilTxt(imovel.agua_tipo),
+      gas: utilTxt(imovel.gas_tipo),
+      captacao: imovel.captacao || 'propria',
+      captacao_parceiro: imovel.captacao === 'parceiro' ? { nome: imovel.parceiro_nome || null, whatsapp: imovel.parceiro_whatsapp || null } : null,
       resumo,
       contexto_ia: contextoIa,
     } : null,

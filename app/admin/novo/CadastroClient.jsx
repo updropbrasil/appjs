@@ -91,13 +91,16 @@ export default function CadastroClient({ parceiros: parceirosIniciais, imovel, f
     parceiro_id: imovel.parceiro_id || '', parceiro_pct: imovel.parceiro_pct || '', codigo: imovel.codigo || '', cep: imovel.cep || '',
     numero: imovel.numero || '', complemento: imovel.complemento || '', ano: imovel.ano_construcao || '',
     contato_interno: imovel.contato_interno || '',
+    condominio_inclui: imovel.condominio_inclui || '', agua_tipo: imovel.agua_tipo || 'nao_informado', gas_tipo: imovel.gas_tipo || 'nao_informado',
+    captacao: imovel.captacao || 'propria', parceiro_nome: imovel.parceiro_nome || '', parceiro_whatsapp: imovel.parceiro_whatsapp || '',
     features: Array.isArray(imovel.features) ? imovel.features : []
   } : {
     finalidade: 'aluguel', categoria: 'Apartamento', titulo: '', bairro: '', endereco: '', referencia: '',
     mobilia: 'sem', quartos: 3, suites: 1, banheiros: 2, vagas: 2, area: '', andar: '', preco: '', condominio: '', iptu: '',
     condominio_tipo: 'valor', iptu_tipo: 'valor',
     video: '', videoUrl: '', videoMode: 'link', descricao: '', parceiro_id: '', parceiro_pct: '', codigo: '', cep: '',
-    numero: '', complemento: '', ano: '', contato_interno: '', features: []
+    numero: '', complemento: '', ano: '', contato_interno: '', features: [],
+    condominio_inclui: '', agua_tipo: 'nao_informado', gas_tipo: 'nao_informado', captacao: 'propria', parceiro_nome: '', parceiro_whatsapp: ''
   });
 
   const set = (patch) => setForm(f => ({ ...f, ...patch }));
@@ -155,6 +158,11 @@ export default function CadastroClient({ parceiros: parceirosIniciais, imovel, f
       else if (form.iptu_tipo === 'incluso') extras.push('IPTU incluso');
       else if (form.iptu_tipo === 'valor' && form.iptu) extras.push(`IPTU R$ ${maskThousands(form.iptu)}`);
       l.push(`💰 Aluguel: R$ ${maskThousands(form.preco)}/mês${extras.length ? ` (${extras.join(' · ')})` : ''}`);
+      if ((form.condominio_inclui || '').trim()) l.push(`🏢 Condomínio inclui: ${form.condominio_inclui.trim()}`);
+      const util = [];
+      if (form.agua_tipo === 'incluso') util.push('água inclusa'); else if (form.agua_tipo === 'individual') util.push('água individual');
+      if (form.gas_tipo === 'incluso') util.push('gás incluso'); else if (form.gas_tipo === 'individual') util.push('gás individual');
+      if (util.length) l.push(`💧 ${util.join(' · ')}`);
       l.push('ℹ️ Valores de condomínio e IPTU são informativos e podem sofrer alterações.');
     } else {
       l.push(`💰 Valor: R$ ${maskThousands(form.preco)}`);
@@ -223,6 +231,11 @@ export default function CadastroClient({ parceiros: parceirosIniciais, imovel, f
         features: Array.isArray(form.features) ? form.features : [],
         parceiro_id: form.parceiro_id || null, parceiro_pct: form.parceiro_id ? (Number(form.parceiro_pct) || null) : null,
         contato_interno: (form.contato_interno || '').trim() || null,
+        condominio_inclui: (form.condominio_inclui || '').trim() || null,
+        agua_tipo: form.agua_tipo || 'nao_informado', gas_tipo: form.gas_tipo || 'nao_informado',
+        captacao: form.captacao || 'propria',
+        parceiro_nome: form.captacao === 'parceiro' ? ((form.parceiro_nome || '').trim() || null) : null,
+        parceiro_whatsapp: form.captacao === 'parceiro' ? ((form.parceiro_whatsapp || '').replace(/\D/g, '') || null) : null,
         status: 'ativo'
       };
 
@@ -466,6 +479,29 @@ export default function CadastroClient({ parceiros: parceirosIniciais, imovel, f
                   onTipo={t => set({ condominio_tipo: t })} onValor={v => set({ condominio: v })} />
                 <TaxaField label="IPTU" tipo={form.iptu_tipo} valor={form.iptu} aluguel={isAluguel}
                   onTipo={t => set({ iptu_tipo: t })} onValor={v => set({ iptu: v })} />
+              </div>
+              <Field label="O que o condomínio inclui">
+                <input value={form.condominio_inclui} onChange={e => set({ condominio_inclui: e.target.value })} placeholder="Ex.: água, gás, portaria, internet, lazer" style={inp} />
+                <Hint>Opcional — entra na descrição e no contexto da IA de atendimento.</Hint>
+              </Field>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <UtilField label="Água" value={form.agua_tipo} onPick={v => set({ agua_tipo: v })} />
+                <UtilField label="Gás" value={form.gas_tipo} onPick={v => set({ gas_tipo: v })} />
+              </div>
+              <div style={{ background: 'rgba(232,168,124,.06)', border: '1px solid rgba(232,168,124,.22)', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--sand)' }}>Captação <span style={{ fontWeight: 400, color: 'var(--muted)' }}>· controle interno</span></div>
+                <div style={{ display: 'flex', background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 10, padding: 3 }}>
+                  {[['propria', 'Própria'], ['parceiro', 'De parceiro']].map(([k, l]) => (
+                    <button key={k} onClick={() => set({ captacao: k })} style={{ flex: 1, padding: '9px 4px', borderRadius: 7, border: 0, fontSize: 12.5, fontWeight: form.captacao === k ? 700 : 400, background: form.captacao === k ? 'var(--accent)' : 'transparent', color: form.captacao === k ? '#2A2117' : 'var(--taupe)' }}>{l}</button>
+                  ))}
+                </div>
+                {form.captacao === 'parceiro' && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <input value={form.parceiro_nome} onChange={e => set({ parceiro_nome: e.target.value })} placeholder="Nome do corretor" style={inp} />
+                    <input value={form.parceiro_whatsapp} onChange={e => set({ parceiro_whatsapp: e.target.value })} placeholder="WhatsApp · 83 9xxxx-xxxx" inputMode="tel" style={inp} />
+                  </div>
+                )}
+                <Hint>🔒 Vai só para o atendimento (payload do lead) — não aparece no site nem nos portais.</Hint>
               </div>
               <div style={{ background: 'rgba(232,168,124,.06)', border: '1px solid rgba(232,168,124,.22)', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--sand)' }}>Parceria <span style={{ fontWeight: 400, color: 'var(--muted)' }}>· controle interno</span></div>
@@ -723,6 +759,21 @@ const fotoNav = (disabled) => ({ width: 26, height: 26, borderRadius: 7, border:
 function Label({ children }) { return <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--sand)', marginTop: 6 }}>{children}</div>; }
 function Hint({ children }) { return <span style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>{children}</span>; }
 function Field({ label, children }) { return <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}><span style={{ fontSize: 13, fontWeight: 700, color: 'var(--sand)' }}>{label}</span>{children}</div>; }
+function UtilField({ label, value, onPick }) {
+  const v = value || 'nao_informado';
+  const opts = [['incluso', 'Incluso'], ['individual', 'Individual'], ['nao_informado', 'Não informar']];
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--sand)' }}>{label}</span>
+      <div style={{ display: 'flex', background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 10, padding: 3 }}>
+        {opts.map(([k, l]) => (
+          <button key={k} onClick={() => onPick(k)} style={{ flex: 1, padding: '9px 2px', borderRadius: 7, border: 0, fontSize: 11.5, fontWeight: v === k ? 700 : 400, background: v === k ? 'var(--accent)' : 'transparent', color: v === k ? '#2A2117' : 'var(--taupe)' }}>{l}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function TaxaField({ label, tipo, valor, onTipo, onValor, aluguel }) {
   const t = (tipo === 'incluso' && !aluguel) ? 'isento' : (tipo || 'valor');
   const opts = [['valor', 'Valor'], ...(aluguel ? [['incluso', 'Incluso']] : [['isento', 'Isento']]), ['nao_informado', 'Não informar']];

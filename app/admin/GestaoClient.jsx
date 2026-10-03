@@ -20,6 +20,34 @@ export default function GestaoClient({ initialImoveis, initialParceiros, initial
   const [excluindo, setExcluindo] = useState(null);
   const [otim, setOtim] = useState(null); // {total, feitas, erros} | null
 
+  const [otimV, setOtimV] = useState(null); // {total, feitas, erros, atual, ganhoMB, fim}
+
+  // Comprime no servidor os vídeos que ainda estão no tamanho original do celular.
+  async function otimizarVideos() {
+    const lista = imoveis.filter(i => i.video_file_url && !String(i.video_file_url).includes('-720p.mp4'));
+    if (!lista.length) { setOtimV({ total: 0, feitas: 0, erros: 0, ganhoMB: 0, fim: true }); return; }
+    let feitas = 0, erros = 0, ganhoMB = 0;
+    setOtimV({ total: lista.length, feitas, erros, ganhoMB, atual: lista[0].codigo });
+    for (const im of lista) {
+      setOtimV({ total: lista.length, feitas, erros, ganhoMB, atual: im.codigo || im.titulo });
+      try {
+        const ini = await fetch('/api/admin/otimizar-video', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: im.id }) }).then(r => r.json());
+        if (!ini.ok) throw new Error(ini.erro || 'falha');
+        let st = ini;
+        while (st.status === 'na fila' || st.status === 'rodando') {
+          await new Promise(r => setTimeout(r, 5000));
+          st = await fetch('/api/admin/otimizar-video?id=' + im.id).then(r => r.json());
+        }
+        if (st.status === 'erro') throw new Error(st.erro);
+        if (st.url && !st.gravado) await supabase.from('imoveis').update({ video_file_url: st.url }).eq('id', im.id);
+        if (st.antesMB) ganhoMB += st.antesMB - st.depoisMB;
+        feitas++;
+      } catch (e) { erros++; console.error('[otimizar vídeo]', im.codigo, e); }
+    }
+    setOtimV({ total: lista.length, feitas, erros, ganhoMB, fim: true });
+    router.refresh();
+  }
+
   // Reprocessa as fotos já publicadas: gera a versão leve e recomprime a grande.
   async function otimizarFotos() {
     const { data: fotos } = await supabase
@@ -173,6 +201,7 @@ export default function GestaoClient({ initialImoveis, initialParceiros, initial
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={() => setShowParceiros(v => !v)} style={{ padding: '11px 16px', borderRadius: 10, border: '1px solid rgba(232,168,124,.4)', background: 'transparent', color: 'var(--accent)', fontSize: 13, fontWeight: 700 }}>Parceiros</button>
             <Link href="/admin/portais" style={{ display: 'flex', alignItems: 'center', padding: '11px 16px', borderRadius: 10, border: '1px solid rgba(232,168,124,.4)', color: 'var(--accent)', fontSize: 13, fontWeight: 700 }}>Portais</Link>
+            <Link href="/admin/rastreamento" style={{ display: 'flex', alignItems: 'center', padding: '11px 16px', borderRadius: 10, border: '1px solid rgba(232,168,124,.4)', color: 'var(--accent)', fontSize: 13, fontWeight: 700 }}>Rastreamento</Link>
             <Link href="/admin/leads" style={{ display: 'flex', alignItems: 'center', padding: '11px 16px', borderRadius: 10, border: '1px solid rgba(232,168,124,.4)', color: 'var(--accent)', fontSize: 13, fontWeight: 700 }}>Leads</Link>
             <Link href="/admin/novo" style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--accent)', color: '#2A2117', padding: '11px 18px', borderRadius: 10, fontSize: 13.5, fontWeight: 700 }}>+ Novo imóvel</Link>
             <button onClick={sair} title="Sair" style={{ padding: '11px 14px', borderRadius: 10, border: '1px solid rgba(243,237,227,.15)', background: 'transparent', color: 'var(--muted)', fontSize: 13 }}>Sair</button>
@@ -258,6 +287,22 @@ export default function GestaoClient({ initialImoveis, initialParceiros, initial
             <button onClick={otimizarFotos} disabled={otim && !otim.fim}
               style={{ padding: '11px 16px', borderRadius: 10, border: '1px solid rgba(232,168,124,.4)', background: otim && !otim.fim ? 'transparent' : 'rgba(232,168,124,.12)', color: 'var(--accent)', fontSize: 13, fontWeight: 700, opacity: otim && !otim.fim ? 0.6 : 1 }}>
               {otim && !otim.fim ? 'Otimizando…' : 'Otimizar agora'}
+            </button>
+          </div>
+
+          {/* OTIMIZAR VÍDEOS */}
+          <div style={{ background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 12, padding: '13px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--cream-2)' }}>Deixar os vídeos leves no celular</div>
+              <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 2 }}>
+                {otimV && !otimV.fim ? `Comprimindo ${otimV.feitas + otimV.erros + 1} de ${otimV.total} (${otimV.atual})… pode levar 1 a 2 min por vídeo. Deixe esta tela aberta.`
+                  : otimV && otimV.fim ? (otimV.total === 0 ? 'Todos os vídeos já estão leves ✓' : `Pronto: ${otimV.feitas} vídeos comprimidos, ${Math.round(otimV.ganhoMB)} MB a menos${otimV.erros ? ` · ${otimV.erros} falharam` : ''}.`)
+                  : 'Converte os vídeos do celular para 720p: o autoplay continua, mas carrega até 10x mais rápido. O original fica guardado.'}
+              </div>
+            </div>
+            <button onClick={otimizarVideos} disabled={otimV && !otimV.fim}
+              style={{ padding: '11px 16px', borderRadius: 10, border: '1px solid rgba(232,168,124,.4)', background: otimV && !otimV.fim ? 'transparent' : 'rgba(232,168,124,.12)', color: 'var(--accent)', fontSize: 13, fontWeight: 700, opacity: otimV && !otimV.fim ? 0.6 : 1 }}>
+              {otimV && !otimV.fim ? 'Comprimindo…' : 'Otimizar vídeos'}
             </button>
           </div>
 

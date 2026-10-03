@@ -1,6 +1,24 @@
 import './globals.css';
 import Script from 'next/script';
-import { SITE_URL, GA_ID, CLARITY_ID, MEDIA_ORIGIN } from '../lib/config';
+import { SITE_URL, GA_ID, CLARITY_ID, MEDIA_ORIGIN, SUPABASE_URL, SUPABASE_ANON_KEY } from '../lib/config';
+
+// IDs de rastreamento: vêm da tela Admin → Rastreamento (tabela site_config).
+// Atualiza sozinho em até 5 minutos, sem precisar de redeploy.
+async function idsRastreamento() {
+  let cfg = {};
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/site_config?select=key,value&key=in.(meta_pixel_id,ga_id,clarity_id)`, {
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
+      next: { revalidate: 300 },
+    });
+    if (r.ok) (await r.json()).forEach(x => { cfg[x.key] = (x.value || '').trim(); });
+  } catch (e) { /* sem rastreamento se o banco não responder */ }
+  // só aceita o formato de cada ID (evita injetar qualquer texto no site)
+  const pixel = /^\d{6,20}$/.test(cfg.meta_pixel_id || '') ? cfg.meta_pixel_id : '';
+  const ga = /^G-[A-Z0-9]{4,20}$/.test(cfg.ga_id || GA_ID) ? (cfg.ga_id || GA_ID) : '';
+  const clarity = /^[a-z0-9]{6,20}$/.test(cfg.clarity_id || CLARITY_ID) ? (cfg.clarity_id || CLARITY_ID) : '';
+  return { pixel, ga, clarity };
+}
 
 const SITE = SITE_URL;
 
@@ -21,9 +39,8 @@ export const metadata = {
   robots: { index: true, follow: true }
 };
 
-export default function RootLayout({ children }) {
-  const ga = GA_ID;
-  const clarity = CLARITY_ID;
+export default async function RootLayout({ children }) {
+  const { pixel, ga, clarity } = await idsRastreamento();
   return (
     <html lang="pt-BR">
       <head>
@@ -47,6 +64,21 @@ export default function RootLayout({ children }) {
               gtag('js', new Date());
               gtag('config', '${ga}');
             `}</Script>
+          </>
+        ) : null}
+
+        {pixel ? (
+          <>
+            <Script id="meta-pixel" strategy="afterInteractive">{`
+              !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+              n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+              n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+              t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
+              document,'script','https://connect.facebook.net/en_US/fbevents.js');
+              fbq('init', '${pixel}');
+              fbq('track', 'PageView');
+            `}</Script>
+            <noscript><img height="1" width="1" style={{ display: 'none' }} alt="" src={`https://www.facebook.com/tr?id=${pixel}&ev=PageView&noscript=1`} /></noscript>
           </>
         ) : null}
 

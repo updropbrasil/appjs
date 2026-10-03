@@ -13,6 +13,8 @@ RUN npm run build
 
 FROM base AS runner
 WORKDIR /app
+# ffmpeg: usado pelo painel para comprimir os vídeos dos imóveis (720p leve)
+RUN apk add --no-cache ffmpeg
 ENV NODE_ENV=production
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next

@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { ytId, ytThumb, ytEmbed, MOBILIA_LABELS, whatsappLink, formatPreco } from '../../../lib/format';
+import { trackViewImovel, trackWhatsApp } from '../../../lib/track';
 
 export default function DetailClient({ im, precoFmt }) {
   const vid = ytId(im.youtube_url);
@@ -13,6 +14,9 @@ export default function DetailClient({ im, precoFmt }) {
   const [origin, setOrigin] = useState('');
   const [full, setFull] = useState(false);
   useEffect(() => { setOrigin(window.location.origin); }, []);
+  useEffect(() => { trackViewImovel(im); }, [im?.id]);
+  // capa do vídeo: aparece na hora enquanto o vídeo carrega
+  const poster = (fotos[0] && (fotos[0].url || fotos[0])) || im.capa_url || undefined;
   useEffect(() => {
     if (!full) return;
     const el = fullTrackRef.current;
@@ -64,7 +68,7 @@ export default function DetailClient({ im, precoFmt }) {
         <Link href="/" style={{ display: 'flex', alignItems: 'center' }} aria-label="Jason Dias Imóveis">
           <img src="/logo-jason-dias.jpg" alt="Jason Dias Imóveis" style={{ height: 34, width: 'auto', mixBlendMode: 'screen' }} />
         </Link>
-        <a href={wa} target="_blank" rel="noopener" style={{ background: 'var(--accent)', color: '#2A2117', padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap' }}>WhatsApp</a>
+        <a href={wa} target="_blank" rel="noopener" onClick={() => trackWhatsApp(im)} style={{ background: 'var(--accent)', color: '#2A2117', padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap' }}>WhatsApp</a>
       </header>
 
       <div className="container" style={{ paddingTop: 20, paddingBottom: 90 }}>
@@ -81,7 +85,7 @@ export default function DetailClient({ im, precoFmt }) {
                     vid ? (
                       <iframe src={ytEmbed(vid, { controls: 1, origin })} referrerPolicy="strict-origin-when-cross-origin" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }} allow="autoplay; encrypted-media" allowFullScreen title={im.titulo} />
                     ) : (
-                      <video src={im.video_file_url} controls autoPlay muted loop playsInline style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <video src={im.video_file_url} poster={poster} controls autoPlay muted loop playsInline style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
                     )
                   ) : (
                     <>
@@ -133,7 +137,7 @@ export default function DetailClient({ im, precoFmt }) {
               <div style={{ fontSize: 12, color: 'var(--muted)' }}>🔒 Endereço exato informado no WhatsApp</div>
             </div>
 
-            <a href={wa} target="_blank" rel="noopener" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, background: 'var(--accent)', color: '#2A2117', padding: 16, borderRadius: 12, fontSize: 15.5, fontWeight: 700, maxWidth: 440 }}>Tenho interesse — falar no WhatsApp</a>
+            <a href={wa} target="_blank" rel="noopener" onClick={() => trackWhatsApp(im)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, background: 'var(--accent)', color: '#2A2117', padding: 16, borderRadius: 12, fontSize: 15.5, fontWeight: 700, maxWidth: 440 }}>Tenho interesse — falar no WhatsApp</a>
             <p style={{ fontSize: 12, lineHeight: 1.55, color: 'var(--muted)', margin: 0, maxWidth: 440 }}>
               Valores de condomínio e IPTU são informativos e podem sofrer alterações ou conter imprecisões. Imóvel sujeito a disponibilidade.
             </p>
@@ -151,7 +155,7 @@ export default function DetailClient({ im, precoFmt }) {
                   vid ? (
                     <iframe src={ytEmbed(vid, { controls: 1, origin })} referrerPolicy="strict-origin-when-cross-origin" style={{ width: 'min(100vw, 56.25vh)', height: 'min(100vh, 177.78vw)', border: 0 }} allow="autoplay; encrypted-media" allowFullScreen title={im.titulo} />
                   ) : (
-                    <video src={im.video_file_url} controls autoPlay muted loop playsInline style={{ maxWidth: '100vw', maxHeight: '100vh' }} />
+                    <video src={im.video_file_url} poster={poster} controls autoPlay muted loop playsInline style={{ maxWidth: '100vw', maxHeight: '100vh' }} />
                   )
                 ) : (
                   <img src={s.bg} alt={`${im.titulo} — foto ${k}`} loading={Math.abs(k - idx) <= 1 ? 'eager' : 'lazy'} decoding="async"

@@ -270,6 +270,8 @@ export default function CadastroClient({ parceiros: parceirosIniciais, imovel, f
         if (videoUrl) {
           await supabase.from('imoveis').update({ video_file_url: videoUrl }).eq('id', imovelId);
           setAvisoVideo('');
+          // comprime no servidor em segundo plano (720p leve); o link é trocado sozinho quando terminar
+          fetch('/api/admin/otimizar-video', { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: imovelId }) }).catch(() => {});
         } else {
           setAvisoVideo(`O vídeo NÃO subiu (${motivo}). O anúncio foi salvo sem vídeo — abra “Editar” e envie de novo.`);
         }

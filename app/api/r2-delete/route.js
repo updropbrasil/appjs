@@ -3,11 +3,17 @@
 import { NextResponse } from 'next/server';
 import { AwsClient } from 'aws4fetch';
 import { R2, r2Configured } from '../../../lib/r2-config.server';
+import { createClient } from '../../../lib/supabase-server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function POST(req) {
+  // Só quem está logado no painel pode gerar upload ou apagar arquivos do R2.
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'não autorizado' }, { status: 401 });
+
   if (!r2Configured()) return NextResponse.json({ ok: false, skipped: true });
   try {
     const { url } = await req.json();

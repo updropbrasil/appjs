@@ -6,6 +6,7 @@ import { createClient } from '../../../lib/supabase-browser';
 const CAMPOS = [
   { key: 'meta_pixel_id', label: 'ID do Pixel da Meta', exemplo: '123456789012345', ajuda: 'Gerenciador de Eventos da Meta → Fontes de dados → seu Pixel. Só os números.', valido: v => /^\d{6,20}$/.test(v) },
   { key: 'ga_id', label: 'ID do Google Analytics (GA4)', exemplo: 'G-ABC123XYZ', ajuda: 'Analytics → Administrador → Fluxos de dados → Web. Começa com G-.', valido: v => /^G-[A-Z0-9]{4,20}$/.test(v) },
+  { key: 'site_whatsapp', label: 'WhatsApp dos botões do site', exemplo: '5583999999999', ajuda: 'Com 55 e DDD, só números. Use o número ligado à IA (SDR): assim o cliente recebe resposta automática e a conversa entra no CRM.', valido: v => /^\d{12,13}$/.test(v) },
   { key: 'clarity_id', label: 'ID do Microsoft Clarity', exemplo: 'abcd1234ef', ajuda: 'clarity.microsoft.com → seu projeto → Configurações → Visão geral → ID do projeto.', valido: v => /^[a-z0-9]{6,20}$/.test(v) },
 ];
 

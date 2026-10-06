@@ -1,4 +1,4 @@
-import { createClient } from '../lib/supabase-server';
+import { createPublicClient as createClient, whatsappDoSite } from '../lib/supabase-public';
 import PortalClient from './PortalClient';
 
 export const revalidate = 60; // ISR: revalida a cada 60s
@@ -39,6 +39,6 @@ async function getHero() {
 }
 
 export default async function HomePage() {
-  const [imoveis, hero] = await Promise.all([getImoveis(), getHero()]);
-  return <PortalClient imoveis={imoveis} heroVideo={hero.heroVideo} heroVideoFile={hero.heroVideoFile} />;
+  const [imoveis, hero, whats] = await Promise.all([getImoveis(), getHero(), whatsappDoSite(createClient())]);
+  return <PortalClient imoveis={imoveis} heroVideo={hero.heroVideo} heroVideoFile={hero.heroVideoFile} whats={whats} />;
 }

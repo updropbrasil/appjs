@@ -19,7 +19,7 @@ const MOBILIAS = [
   { k: 'planejados', label: 'Com planejados' }
 ];
 
-export default function PortalClient({ imoveis, heroVideo, heroVideoFile }) {
+export default function PortalClient({ imoveis, heroVideo, heroVideoFile, whats }) {
   // Todos os filtros num objeto só, espelhado no link (?f=aluguel&q=manaira...).
   // Assim a busca pode ser compartilhada e continua igual quando a pessoa volta de um imóvel.
   const [fl, setFl] = useState(FILTROS_PADRAO);
@@ -69,7 +69,7 @@ export default function PortalClient({ imoveis, heroVideo, heroVideoFile }) {
   }, [pronto, query]);
 
   const heroYt = ytId(heroVideo);
-  const wa = whatsappLink('Olá! Vi um imóvel no site e tenho interesse.');
+  const wa = whatsappLink('Olá! Vi um imóvel no site e tenho interesse.', whats);
   const goToList = (f) => {
     setFilter(f);
     const el = document.getElementById('lista');

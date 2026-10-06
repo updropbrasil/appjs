@@ -10,7 +10,7 @@ export default async function RastreamentoPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/admin/login');
 
-  const { data } = await supabase.from('site_config').select('key, value').in('key', ['meta_pixel_id', 'ga_id', 'clarity_id']);
+  const { data } = await supabase.from('site_config').select('key, value').in('key', ['meta_pixel_id', 'ga_id', 'clarity_id', 'site_whatsapp']);
   const c = {};
   (data || []).forEach(r => { c[r.key] = r.value || ''; });
   return <RastreamentoClient inicial={c} />;

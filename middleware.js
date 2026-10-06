@@ -24,5 +24,7 @@ export async function middleware(request) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)']
+  // Só o painel e as rotas de API precisam renovar o login. As páginas públicas
+  // (home e imóveis) ficam sem essa consulta e podem sair prontas do cache.
+  matcher: ['/admin/:path*', '/api/:path*']
 };

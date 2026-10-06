@@ -7,7 +7,7 @@ import { ultimaBusca } from '../../../lib/busca';
 import CardImovel from '../../CardImovel';
 import IconeWhats from '../../IconeWhats';
 
-export default function DetailClient({ im, precoFmt, parecidos = [] }) {
+export default function DetailClient({ im, precoFmt, parecidos = [], whats }) {
   const vid = ytId(im.youtube_url);
   const nativo = !vid && im.video_file_url;
   const fotos = Array.isArray(im.fotos) ? im.fotos : [];
@@ -63,7 +63,7 @@ export default function DetailClient({ im, precoFmt, parecidos = [] }) {
     scrollTo(full ? fullTrackRef : trackRef, t);
   };
   const cur = slides[idx] || {};
-  const wa = whatsappLink(`Olá! Tenho interesse no imóvel ${im.codigo ? `(cód. ${im.codigo}) ` : ''}"${im.titulo}" no ${im.bairro}. Pode me passar mais informações?`);
+  const wa = whatsappLink(`Olá! Tenho interesse no imóvel ${im.codigo ? `(cód. ${im.codigo}) ` : ''}"${im.titulo}" no ${im.bairro}. Pode me passar mais informações?`, whats);
 
   const taxa = (tipo, cents) => tipo === 'isento' ? 'Isento'
     : tipo === 'incluso' ? 'Incluso no aluguel'

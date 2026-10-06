@@ -1,10 +1,13 @@
 import { notFound } from 'next/navigation';
-import { createClient } from '../../../lib/supabase-server';
+import { createPublicClient as createClient, whatsappDoSite } from '../../../lib/supabase-public';
 import DetailClient from './DetailClient';
 import { formatPreco, MOBILIA_SEO } from '../../../lib/format';
 import { parecidosCom } from '../../../lib/busca';
 
 export const revalidate = 60;
+// Gera cada imóvel na primeira visita e guarda pronto (atualiza a cada 60 s).
+export const dynamicParams = true;
+export async function generateStaticParams() { return []; }
 
 async function getImovel(slug) {
   const supabase = createClient();
@@ -67,11 +70,11 @@ function jsonLd(im) {
 export default async function ImovelPage({ params }) {
   const im = await getImovel(params.slug);
   if (!im) notFound();
-  const parecidos = await getParecidos(im);
+  const [parecidos, whats] = await Promise.all([getParecidos(im), whatsappDoSite(createClient())]);
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd(im)) }} />
-      <DetailClient im={im} precoFmt={formatPreco(im.preco_cents)} parecidos={parecidos} />
+      <DetailClient im={im} precoFmt={formatPreco(im.preco_cents)} parecidos={parecidos} whats={whats} />
     </>
   );
 }

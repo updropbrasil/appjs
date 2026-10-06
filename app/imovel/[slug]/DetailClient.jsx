@@ -3,8 +3,10 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { ytId, ytThumb, ytEmbed, MOBILIA_LABELS, whatsappLink, formatPreco } from '../../../lib/format';
 import { trackViewImovel, trackWhatsApp } from '../../../lib/track';
+import { ultimaBusca } from '../../../lib/busca';
+import CardImovel from '../../CardImovel';
 
-export default function DetailClient({ im, precoFmt }) {
+export default function DetailClient({ im, precoFmt, parecidos = [] }) {
   const vid = ytId(im.youtube_url);
   const nativo = !vid && im.video_file_url;
   const fotos = Array.isArray(im.fotos) ? im.fotos : [];
@@ -13,8 +15,19 @@ export default function DetailClient({ im, precoFmt }) {
   const [idx, setIdx] = useState(0);
   const [origin, setOrigin] = useState('');
   const [full, setFull] = useState(false);
-  useEffect(() => { setOrigin(window.location.origin); }, []);
+  // "Voltar aos imóveis" leva para a mesma busca que a pessoa tinha feito (filtros e posição na lista)
+  const [voltar, setVoltar] = useState('/#lista');
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    setOrigin(window.location.origin);
+    setVoltar('/' + ultimaBusca() + '#lista');
+    const mq = window.matchMedia('(max-width: 720px)');
+    const on = () => setIsMobile(mq.matches);
+    on(); mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
   useEffect(() => { trackViewImovel(im); }, [im?.id]);
+  const ehAluguel = im.finalidade === 'aluguel';
   // capa do vídeo: aparece na hora enquanto o vídeo carrega
   const poster = (fotos[0] && (fotos[0].url || fotos[0])) || im.capa_url || undefined;
   useEffect(() => {
@@ -71,8 +84,8 @@ export default function DetailClient({ im, precoFmt }) {
         <a href={wa} target="_blank" rel="noopener" onClick={() => trackWhatsApp(im)} style={{ background: 'var(--accent)', color: '#2A2117', padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap' }}>WhatsApp</a>
       </header>
 
-      <div className="container" style={{ paddingTop: 20, paddingBottom: 90 }}>
-        <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13.5, color: 'var(--taupe)', padding: '10px 0' }}>← Voltar aos imóveis</Link>
+      <div className="container" style={{ paddingTop: 20, paddingBottom: isMobile ? 40 : 90 }}>
+        <Link href={voltar} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13.5, color: 'var(--taupe)', padding: '10px 0' }}>← Voltar aos imóveis</Link>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 48, alignItems: 'flex-start' }}>
           {/* MÍDIA */}
@@ -144,6 +157,42 @@ export default function DetailClient({ im, precoFmt }) {
           </div>
         </div>
       </div>
+      {/* IMÓVEIS PARECIDOS — a pessoa continua olhando sem precisar voltar */}
+      {parecidos.length > 0 && (
+        <section className="container" style={{ paddingTop: isMobile ? 8 : 0, paddingBottom: isMobile ? 110 : 80 }}>
+          <div style={{ borderTop: '1px solid var(--line)', paddingTop: isMobile ? 26 : 40 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: isMobile ? 14 : 22 }}>
+              <h2 style={{ fontSize: isMobile ? 21 : 26, color: 'var(--cream-2)', margin: 0 }}>{ehAluguel ? 'Outros imóveis para alugar' : 'Outros imóveis à venda'}</h2>
+              <Link href={`/?f=${ehAluguel ? 'aluguel' : 'venda'}#lista`} style={{ fontSize: 13.5, fontWeight: 700 }}>Ver todos →</Link>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(auto-fill,minmax(210px,1fr))', gap: isMobile ? 12 : 20 }}>
+              {parecidos.map(p => <CardImovel key={p.id} im={p} compacto={isMobile} autoVideo={!isMobile} origin={origin} />)}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: isMobile ? 20 : 28 }}>
+              <Link href={`/?f=${ehAluguel ? 'aluguel' : 'venda'}#lista`} style={{ border: '1px solid rgba(232,168,124,.5)', color: 'var(--accent)', padding: '12px 22px', borderRadius: 10, fontSize: 14, fontWeight: 700 }}>
+                {ehAluguel ? 'Ver todos os imóveis para alugar' : 'Ver todos os imóveis à venda'}
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
+      {parecidos.length === 0 && isMobile && <div style={{ height: 90 }} />}
+
+      {/* BARRA FIXA NO CELULAR: preço + WhatsApp sempre à mão */}
+      {isMobile && !full && (
+        <div style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, background: 'rgba(31,24,18,.96)', backdropFilter: 'blur(10px)', borderTop: '1px solid rgba(243,237,227,.12)', padding: '10px 16px calc(10px + env(safe-area-inset-bottom))', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ minWidth: 0, flex: '1 1 auto' }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--cream-2)', whiteSpace: 'nowrap' }}>{precoFmt}<span style={{ fontSize: 12, fontWeight: 400, color: 'var(--taupe)' }}>{ehAluguel ? '/mês' : ''}</span></div>
+            <div style={{ fontSize: 11.5, color: 'var(--taupe)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{im.bairro}{im.codigo ? ` · ${im.codigo}` : ''}</div>
+          </div>
+          <a href={wa} target="_blank" rel="noopener" onClick={() => trackWhatsApp(im)}
+            style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 8, background: '#25D366', color: '#0B2915', padding: '13px 18px', borderRadius: 12, fontSize: 15, fontWeight: 800 }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.3-.4.7-1.4.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.2 2.2 2.2 0 0 0 .2-1.3c-.1-.1-.3-.2-.5-.3z"/></svg>
+            WhatsApp
+          </a>
+        </div>
+      )}
+
       {/* TELA CHEIA */}
       {full && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: '#0F0B08' }}>

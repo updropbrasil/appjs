@@ -1,9 +1,16 @@
 'use client';
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
-import { MOBILIA_LABELS, ytId, ytThumb, ytEmbed, formatPreco, maskThousands, whatsappLink } from '../lib/format';
+import { ytId, ytEmbed, maskThousands, whatsappLink } from '../lib/format';
+import { trackWhatsApp } from '../lib/track';
+import { semAcento, soLetrasNumeros, FILTROS_PADRAO, filtrosDaUrl, urlDosFiltros, lembrarBusca, lembrarRolagem, pegarRolagem } from '../lib/busca';
+import CardImovel from './CardImovel';
 
-const BAIRROS = ['Cabo Branco', 'Manaíra', 'Tambaú', 'Bessa', 'Altiplano', 'Intermares'];
+const QUARTOS = ['1', '2', '3', '4'];
+const ORDENS = [
+  { k: 'relevancia', label: 'Destaques' }, { k: 'menor', label: 'Menor preço' },
+  { k: 'maior', label: 'Maior preço' }, { k: 'recentes', label: 'Mais recentes' }
+];
 const CATEGORIAS = ['Apartamento', 'Casa', 'Cobertura', 'Flat / Studio'];
 const MOBILIAS = [
   { k: 'todos', label: 'Todas' }, { k: 'mobiliado', label: 'Mobiliado' },
@@ -12,15 +19,21 @@ const MOBILIAS = [
 ];
 
 export default function PortalClient({ imoveis, heroVideo, heroVideoFile }) {
-  const [filter, setFilter] = useState('todos');
+  // Todos os filtros num objeto só, espelhado no link (?f=aluguel&q=manaira...).
+  // Assim a busca pode ser compartilhada e continua igual quando a pessoa volta de um imóvel.
+  const [fl, setFl] = useState(FILTROS_PADRAO);
+  const [pronto, setPronto] = useState(false);
+  const set = (k) => (v) => setFl(o => ({ ...o, [k]: v }));
+  const filter = fl.f, setFilter = set('f');
+  const fBairro = fl.q, setFBairro = set('q');
+  const fTipo = fl.tipo, setFTipo = set('tipo');
+  const fMin = fl.min, setFMin = (v) => set('min')(String(v).replace(/\D/g, ''));
+  const fMax = fl.max, setFMax = (v) => set('max')(String(v).replace(/\D/g, ''));
+  const fMobilia = fl.mob, setFMobilia = set('mob');
+  const fQuartos = fl.quartos, setFQuartos = set('quartos');
+  const ordem = fl.ordem, setOrdem = set('ordem');
   const [showFilters, setShowFilters] = useState(false);
-  const [fBairro, setFBairro] = useState('');
-  const [fTipo, setFTipo] = useState('todos');
-  const [fMin, setFMin] = useState('');
-  const [fMax, setFMax] = useState('');
-  const [fMobilia, setFMobilia] = useState('todos');
   const [heroPlaying, setHeroPlaying] = useState(false);
-  const [active, setActive] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
   const [origin, setOrigin] = useState('');
   useEffect(() => { setOrigin(window.location.origin); }, []);
@@ -31,6 +44,29 @@ export default function PortalClient({ imoveis, heroVideo, heroVideoFile }) {
     return () => mq.removeEventListener('change', on);
   }, []);
 
+  // 1) ao abrir: lê os filtros do link e, se a pessoa está voltando de um imóvel, volta para o mesmo ponto da lista
+  useEffect(() => {
+    const inicial = filtrosDaUrl(window.location.search);
+    setFl(inicial);
+    setPronto(true);
+    const query = urlDosFiltros(inicial);
+    const y = pegarRolagem(query);
+    const irPara = (fn) => requestAnimationFrame(() => setTimeout(fn, 60));
+    if (y != null) irPara(() => window.scrollTo(0, y));
+    else if (window.location.hash === '#lista' || query) irPara(() => {
+      const el = document.getElementById('lista');
+      if (el) window.scrollTo(0, el.offsetTop - 70);
+    });
+  }, []);
+
+  // 2) a cada mudança: atualiza o link (sem recarregar) e guarda a busca para o "Voltar aos imóveis"
+  const query = urlDosFiltros(fl);
+  useEffect(() => {
+    if (!pronto) return;
+    try { window.history.replaceState(window.history.state, '', window.location.pathname + query); } catch (e) {}
+    lembrarBusca(query);
+  }, [pronto, query]);
+
   const heroYt = ytId(heroVideo);
   const wa = whatsappLink('Olá! Vi um imóvel no site e tenho interesse.');
   const goToList = (f) => {
@@ -40,44 +76,66 @@ export default function PortalClient({ imoveis, heroVideo, heroVideoFile }) {
   };
 
   const num = (v) => { const n = String(v).replace(/\D/g, ''); return n ? Number(n) : null; };
-  const pMin = num(fMin), pMax = num(fMax), bairroQ = fBairro.trim().toLowerCase();
-  // busca por código no mesmo campo: aceita jdv-1019, jdv1019 ou só 1019
-  const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-  const codQ = norm(bairroQ);
+  const pMin = num(fMin), pMax = num(fMax), nQuartos = num(fQuartos);
+  // busca sem acento ("manaira" acha "Manaíra"); no mesmo campo aceita código: jdv-1019, jdv1019 ou só 1019
+  const bairroQ = semAcento(fBairro);
+  const codQ = soLetrasNumeros(fBairro);
   const matchImovel = (i) => {
     if (!bairroQ) return true;
-    if ((i.bairro || '').toLowerCase().includes(bairroQ)) return true;
-    return !!codQ && norm(i.codigo).includes(codQ);
+    if (semAcento(i.bairro).includes(bairroQ)) return true;
+    if (semAcento(i.titulo).includes(bairroQ)) return true;
+    return !!codQ && soLetrasNumeros(i.codigo).includes(codQ);
   };
 
-  const lista = useMemo(() => imoveis
-    .filter(i => filter === 'todos' || i.finalidade === filter)
-    .filter(matchImovel)
-    .filter(i => fTipo === 'todos' || i.categoria === fTipo)
-    .filter(i => pMin == null || i.preco_cents >= pMin * 100)
-    .filter(i => pMax == null || i.preco_cents <= pMax * 100)
-    .filter(i => fMobilia === 'todos' || i.mobilia === fMobilia),
-    [imoveis, filter, bairroQ, fTipo, pMin, pMax, fMobilia]);
+  // bairros que existem nos imóveis ativos, do que tem mais imóveis para o que tem menos
+  const bairros = useMemo(() => {
+    // agrupa grafias diferentes do mesmo bairro ("Camboinha" e "CAMBOINHA") e mostra a que não está toda em maiúsculas
+    const grupos = {};
+    imoveis.forEach(i => {
+      const b = (i.bairro || '').trim(); if (!b) return;
+      const k = semAcento(b);
+      const g = grupos[k] || (grupos[k] = { nome: b, n: 0 });
+      g.n += 1;
+      if (g.nome === g.nome.toUpperCase() && b !== b.toUpperCase()) g.nome = b;
+    });
+    const titulo = (t) => t === t.toUpperCase() ? t.toLowerCase().replace(/(^|\s)(\S)/g, (m, e, l) => e + l.toUpperCase()) : t;
+    return Object.values(grupos).sort((a, b) => b.n - a.n || a.nome.localeCompare(b.nome)).map(g => titulo(g.nome));
+  }, [imoveis]);
 
-  const activeCount = [fTipo !== 'todos', fMobilia !== 'todos', !!bairroQ, pMin != null, pMax != null].filter(Boolean).length;
+  const lista = useMemo(() => {
+    const r = imoveis
+      .filter(i => filter === 'todos' || i.finalidade === filter)
+      .filter(matchImovel)
+      .filter(i => fTipo === 'todos' || i.categoria === fTipo)
+      .filter(i => pMin == null || i.preco_cents >= pMin * 100)
+      .filter(i => pMax == null || i.preco_cents <= pMax * 100)
+      .filter(i => fMobilia === 'todos' || i.mobilia === fMobilia)
+      .filter(i => nQuartos == null || (i.quartos || 0) >= nQuartos);
+    if (ordem === 'menor') r.sort((a, b) => (a.preco_cents || 0) - (b.preco_cents || 0));
+    else if (ordem === 'maior') r.sort((a, b) => (b.preco_cents || 0) - (a.preco_cents || 0));
+    else if (ordem === 'recentes') r.sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+    return r;
+  }, [imoveis, filter, bairroQ, codQ, fTipo, pMin, pMax, fMobilia, nQuartos, ordem]);
+
+  const activeCount = [fTipo !== 'todos', fMobilia !== 'todos', !!bairroQ, pMin != null, pMax != null, nQuartos != null].filter(Boolean).length;
+  const limparFiltros = () => setFl(o => ({ ...FILTROS_PADRAO, f: o.f, ordem: o.ordem }));
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
       {/* HEADER */}
       <header style={{ position: 'sticky', top: 0, zIndex: 40, background: 'rgba(31,24,18,.92)', backdropFilter: 'blur(10px)', borderBottom: '1px solid var(--line)' }}>
-        <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: isMobile ? '14px 20px' : '16px 56px' }}>
+        <div className="container cab-home" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center' }}>
             <img src="/logo-jason-dias.jpg" alt="Jason Dias Imóveis" style={{ height: isMobile ? 30 : 36, width: 'auto', mixBlendMode: 'screen' }} />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 12 : 28 }}>
-            {!isMobile && (
-              <nav style={{ display: 'flex', gap: 26, fontSize: 14, color: 'var(--sand)' }}>
-                <button onClick={() => goToList('aluguel')} style={navLink}>Alugar</button>
-                <button onClick={() => goToList('venda')} style={navLink}>Comprar</button>
-                <button onClick={() => goToList('todos')} style={navLink}>Imóveis</button>
-              </nav>
-            )}
-            <a href={wa} target="_blank" rel="noopener" style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--accent)', color: '#2A2117', padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 700 }}>
+            {/* escondido no celular pelo CSS (classe so-pc), para já abrir certo antes do JavaScript carregar */}
+            <nav className="so-pc" style={{ display: 'flex', gap: 26, fontSize: 14, color: 'var(--sand)' }}>
+              <button onClick={() => goToList('aluguel')} style={navLink}>Alugar</button>
+              <button onClick={() => goToList('venda')} style={navLink}>Comprar</button>
+              <button onClick={() => goToList('todos')} style={navLink}>Imóveis</button>
+            </nav>
+            <a href={wa} target="_blank" rel="noopener" onClick={() => trackWhatsApp({})} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--accent)', color: '#2A2117', padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 700 }}>
               WhatsApp
             </a>
             <Link href="/admin/login" title="Área do corretor" aria-label="Área do corretor"
@@ -132,14 +190,23 @@ export default function PortalClient({ imoveis, heroVideo, heroVideoFile }) {
 
                 <div style={{ flex: '1 1 200px', minWidth: 0 }}>
                   <div style={buscaLabel}>BAIRRO OU CÓDIGO</div>
-                  <input value={fBairro} onChange={e => setFBairro(e.target.value)} placeholder={isMobile ? 'Bairro ou JDV1019' : 'ex.: Cabo Branco ou JDV1019'} style={buscaField} enterKeyHint="search" onKeyDown={e => { if (e.key === 'Enter') goToList(filter); }} />
+                  <input value={fBairro} onChange={e => setFBairro(e.target.value)} list="jd-bairros" placeholder={isMobile ? 'Bairro ou JDV1019' : 'ex.: Cabo Branco ou JDV1019'} style={buscaField} enterKeyHint="search" onKeyDown={e => { if (e.key === 'Enter') goToList(filter); }} />
+                  <datalist id="jd-bairros">{bairros.map(b => <option key={b} value={b} />)}</datalist>
                 </div>
 
-                <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+                <div style={{ flex: isMobile ? '1 1 130px' : '1 1 200px', minWidth: 0 }}>
                   <div style={buscaLabel}>TIPO DE IMÓVEL</div>
                   <select value={fTipo} onChange={e => setFTipo(e.target.value)} style={buscaField}>
                     <option value="todos">Todos os tipos</option>
                     {CATEGORIAS.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+
+                <div style={{ flex: isMobile ? '1 1 100px' : '1 1 120px', minWidth: 0 }}>
+                  <div style={buscaLabel}>QUARTOS</div>
+                  <select value={fQuartos} onChange={e => setFQuartos(e.target.value)} style={buscaField}>
+                    <option value="">Qualquer</option>
+                    {QUARTOS.map(q => <option key={q} value={q}>{q}+ quarto{q === '1' ? '' : 's'}</option>)}
                   </select>
                 </div>
 
@@ -165,10 +232,13 @@ export default function PortalClient({ imoveis, heroVideo, heroVideoFile }) {
 
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', fontSize: 12, color: 'var(--muted)' }}>
                 <span>Bairros:</span>
-                {BAIRROS.slice(0, isMobile ? 3 : 6).map(b => (
-                  <button key={b} onClick={() => { setFBairro(fBairro.toLowerCase() === b.toLowerCase() ? '' : b); goToList(filter); }}
-                    style={{ padding: '5px 12px', borderRadius: 999, fontSize: 12, cursor: 'pointer', border: `1px solid ${fBairro.toLowerCase() === b.toLowerCase() ? 'var(--accent)' : 'rgba(243,237,227,.18)'}`, background: fBairro.toLowerCase() === b.toLowerCase() ? 'rgba(232,168,124,.14)' : 'transparent', color: fBairro.toLowerCase() === b.toLowerCase() ? 'var(--accent)' : 'var(--sand)' }}>{b}</button>
-                ))}
+                {bairros.slice(0, isMobile ? 4 : 7).map(b => {
+                  const sel = semAcento(fBairro) === semAcento(b);
+                  return (
+                    <button key={b} onClick={() => { setFBairro(sel ? '' : b); goToList(filter); }}
+                      style={{ padding: '5px 12px', borderRadius: 999, fontSize: 12, cursor: 'pointer', border: `1px solid ${sel ? 'var(--accent)' : 'rgba(243,237,227,.18)'}`, background: sel ? 'rgba(232,168,124,.14)' : 'transparent', color: sel ? 'var(--accent)' : 'var(--sand)' }}>{b}</button>
+                  );
+                })}
                 <button onClick={() => { setShowFilters(true); goToList(filter); }} style={{ background: 'transparent', border: 0, color: 'var(--accent)', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>mais filtros →</button>
               </div>
             </div>
@@ -179,8 +249,12 @@ export default function PortalClient({ imoveis, heroVideo, heroVideoFile }) {
       {/* LISTA */}
       <section id="lista" className="container" style={{ padding: isMobile ? '28px 20px 40px' : '36px 56px 56px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', marginBottom: 22 }}>
-          <h2 style={{ fontSize: 24, color: 'var(--cream-2)', margin: 0 }}>Imóveis disponíveis</h2>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <h2 style={{ fontSize: 24, color: 'var(--cream-2)', margin: 0 }}>Imóveis disponíveis <span style={{ fontSize: 14, color: 'var(--muted)', fontFamily: 'Karla, system-ui, sans-serif' }}>({lista.length})</span></h2>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <select value={ordem} onChange={e => setOrdem(e.target.value)} aria-label="Ordenar"
+              style={{ ...chip(ordem !== 'relevancia'), appearance: 'none', paddingRight: 28, background: `${ordem !== 'relevancia' ? 'rgba(232,168,124,.12)' : 'transparent'} url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23D8C9B2'/%3E%3C/svg%3E") no-repeat right 11px center` }}>
+              {ORDENS.map(o => <option key={o.k} value={o.k} style={{ color: '#2A2117' }}>{o.k === 'relevancia' ? 'Ordenar: destaques' : o.label}</option>)}
+            </select>
             {['todos', 'aluguel', 'venda'].map(f => (
               <button key={f} onClick={() => setFilter(f)} style={chip(filter === f)}>
                 {f === 'todos' ? 'Todos' : f === 'aluguel' ? 'Aluguel' : 'Venda'}
@@ -197,20 +271,26 @@ export default function PortalClient({ imoveis, heroVideo, heroVideoFile }) {
             <Group label="BAIRRO OU CÓDIGO">
               <input value={fBairro} onChange={e => setFBairro(e.target.value)} placeholder="Bairro ou código… ex.: Cabo Branco, JDV1019" style={inp} />
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 9 }}>
-                {BAIRROS.map(b => <button key={b} onClick={() => setFBairro(fBairro.toLowerCase() === b.toLowerCase() ? '' : b)} style={chip(fBairro.toLowerCase() === b.toLowerCase())}>{b}</button>)}
+                {bairros.map(b => { const sel = semAcento(fBairro) === semAcento(b); return <button key={b} onClick={() => setFBairro(sel ? '' : b)} style={chip(sel)}>{b}</button>; })}
               </div>
             </Group>
             <Group label="FAIXA DE VALOR">
               <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg)', border: '1px solid rgba(243,237,227,.15)', borderRadius: 12, padding: '0 14px', width: 180 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg)', border: '1px solid rgba(243,237,227,.15)', borderRadius: 12, padding: '0 14px', flex: '1 1 130px', maxWidth: 200 }}>
                   <span style={{ fontSize: 14, color: 'var(--muted)' }}>R$</span>
                   <input value={maskThousands(fMin)} onChange={e => setFMin(e.target.value)} placeholder="mínimo" inputMode="numeric" style={{ flex: 1, minWidth: 0, background: 'transparent', border: 0, padding: '13px 0', fontSize: 16, color: 'var(--cream)' }} />
                 </div>
                 <span style={{ color: 'var(--muted)' }}>até</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg)', border: '1px solid rgba(243,237,227,.15)', borderRadius: 12, padding: '0 14px', width: 180 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg)', border: '1px solid rgba(243,237,227,.15)', borderRadius: 12, padding: '0 14px', flex: '1 1 130px', maxWidth: 200 }}>
                   <span style={{ fontSize: 14, color: 'var(--muted)' }}>R$</span>
                   <input value={maskThousands(fMax)} onChange={e => setFMax(e.target.value)} placeholder="máximo" inputMode="numeric" style={{ flex: 1, minWidth: 0, background: 'transparent', border: 0, padding: '13px 0', fontSize: 16, color: 'var(--cream)' }} />
                 </div>
+              </div>
+            </Group>
+            <Group label="QUARTOS">
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <button onClick={() => setFQuartos('')} style={chip(!fQuartos)}>Qualquer</button>
+                {QUARTOS.map(q => <button key={q} onClick={() => setFQuartos(q)} style={chip(fQuartos === q)}>{q}+</button>)}
               </div>
             </Group>
             <Group label="TIPO DE IMÓVEL">
@@ -226,15 +306,20 @@ export default function PortalClient({ imoveis, heroVideo, heroVideoFile }) {
             </Group>
             <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--line)', paddingTop: 14 }}>
               <span style={{ fontSize: 13, color: 'var(--sand)' }}>{lista.length} {lista.length === 1 ? 'imóvel encontrado' : 'imóveis encontrados'}</span>
-              {activeCount > 0 && <button onClick={() => { setFBairro(''); setFTipo('todos'); setFMin(''); setFMax(''); setFMobilia('todos'); }} style={{ background: 'transparent', border: 0, color: 'var(--accent)', fontSize: 12.5, fontWeight: 600 }}>Limpar filtros</button>}
+              {activeCount > 0 && <button onClick={limparFiltros} style={{ background: 'transparent', border: 0, color: 'var(--accent)', fontSize: 12.5, fontWeight: 600 }}>Limpar filtros</button>}
             </div>
           </div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(210px,1fr))', gap: 20 }}>
-          {lista.map((im, i) => <Card key={im.id} im={im} active={active === im.id} setActive={setActive} origin={origin} priority={i < 4} />)}
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(auto-fill,minmax(210px,1fr))', gap: isMobile ? 12 : 20 }}>
+          {lista.map((im, i) => <CardImovel key={im.id} im={im} compacto={isMobile} autoVideo={!isMobile} origin={origin} priority={i < 4} onAbrir={() => lembrarRolagem(query)} />)}
         </div>
-        {lista.length === 0 && <div style={{ textAlign: 'center', padding: 48, color: 'var(--muted)' }}>Nenhum imóvel encontrado com esses filtros.</div>}
+        {lista.length === 0 && (
+          <div style={{ textAlign: 'center', padding: 48, color: 'var(--muted)' }}>
+            Nenhum imóvel encontrado com esses filtros.
+            {activeCount > 0 && <div><button onClick={limparFiltros} style={{ marginTop: 12, background: 'transparent', border: '1px solid var(--accent)', color: 'var(--accent)', borderRadius: 999, padding: '8px 16px', fontSize: 13 }}>Limpar filtros</button></div>}
+          </div>
+        )}
       </section>
 
       {/* COMO FUNCIONA */}
@@ -261,60 +346,6 @@ export default function PortalClient({ imoveis, heroVideo, heroVideoFile }) {
         <Link href="/admin/login" style={{ fontSize: 11.5, color: '#6b5f4e' }}>Área do corretor</Link>
       </footer>
     </div>
-  );
-}
-
-function Card({ im, active, setActive, origin, priority }) {
-  const vid = ytId(im.youtube_url);
-  const nativo = !vid && im.video_file_url;
-  const f0 = (im.imovel_fotos || []).slice().sort((a, b) => (a.ordem || 0) - (b.ordem || 0))[0];
-  const foto0 = f0?.thumb_url || f0?.url;
-  const capa = vid ? ytThumb(vid) : (im.capa_url || foto0 || '');
-  const ref = useRef(null);
-  const [visible, setVisible] = useState(false);
-  useEffect(() => {
-    if (!nativo || !ref.current) return;
-    const io = new IntersectionObserver(([e]) => setVisible(e.isIntersecting), { threshold: 0.55 });
-    io.observe(ref.current);
-    return () => io.disconnect();
-  }, [nativo]);
-  const playNativo = nativo && (visible || active);
-  return (
-    <Link ref={ref} href={`/imovel/${im.slug}`} style={{ background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 16, overflow: 'hidden', display: 'block' }}
-      onMouseEnter={() => setActive(im.id)} onMouseLeave={() => setActive(null)}>
-      <div style={{ position: 'relative', aspectRatio: '9/16', background: 'linear-gradient(150deg,#6B5A44,#463928)', overflow: 'hidden' }}>
-        {capa && (
-          <img src={capa} alt={im.titulo || im.categoria} loading={priority ? 'eager' : 'lazy'} fetchPriority={priority ? 'high' : 'auto'} decoding="async"
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-        )}
-        {vid && active && (
-          <iframe src={ytEmbed(vid, { controls: 0, origin })} referrerPolicy="strict-origin-when-cross-origin"
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0, pointerEvents: 'none' }} title={im.titulo} />
-        )}
-        {playNativo && (
-          <video src={im.video_file_url} muted loop playsInline autoPlay preload="metadata"
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-        )}
-        <span style={{ position: 'absolute', top: 12, left: 12, background: 'rgba(31,24,18,.85)', color: im.finalidade === 'aluguel' ? 'var(--accent)' : 'var(--green)', fontSize: 10.5, fontWeight: 700, letterSpacing: '.14em', padding: '5px 10px', borderRadius: 6 }}>
-          {im.finalidade === 'aluguel' ? 'ALUGUEL' : 'VENDA'}
-        </span>
-        {(vid || nativo) && (
-          <span style={{ position: 'absolute', bottom: 12, left: 12, display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(31,24,18,.72)', color: 'var(--cream)', fontSize: 11, padding: '5px 9px', borderRadius: 6 }}>▶ Tour em vídeo</span>
-        )}
-      </div>
-      <div style={{ padding: '16px 18px 18px' }}>
-        <div style={{ fontSize: 21, fontWeight: 700, color: 'var(--cream-2)', letterSpacing: '-.01em' }}>{formatPreco(im.preco_cents)}<span style={{ fontSize: 13, fontWeight: 400, color: 'var(--taupe)' }}>{im.finalidade === 'aluguel' ? '/mês' : ''}</span></div>
-        <div style={{ fontSize: 14, color: 'var(--sand)', margin: '6px 0 12px', lineHeight: 1.4 }}>{im.titulo ? `${im.titulo}` : im.categoria} · <strong style={{ color: 'var(--cream)', fontWeight: 600 }}>{im.bairro}</strong></div>
-        <div style={{ display: 'flex', gap: '8px 14px', fontSize: 12.5, color: 'var(--taupe)', flexWrap: 'wrap', borderTop: '1px solid var(--line)', paddingTop: 12 }}>
-          {im.quartos ? <span>{im.quartos} quartos</span> : null}
-          {im.banheiros ? <span>{im.banheiros} banh.</span> : null}
-          {im.vagas ? <span>{im.vagas} vagas</span> : null}
-          {im.area_m2 ? <span>{im.area_m2} m²</span> : null}
-          {im.mobilia ? <span>{MOBILIA_LABELS[im.mobilia]}</span> : null}
-          {im.codigo ? <span style={{ marginLeft: 'auto', color: 'var(--muted)', fontSize: 11 }}>{im.codigo}</span> : null}
-        </div>
-      </div>
-    </Link>
   );
 }
 

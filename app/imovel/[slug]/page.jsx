@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { createClient } from '../../../lib/supabase-server';
 import DetailClient from './DetailClient';
 import { formatPreco, MOBILIA_SEO } from '../../../lib/format';
+import { parecidosCom } from '../../../lib/busca';
 
 export const revalidate = 60;
 
@@ -11,6 +12,22 @@ async function getImovel(slug) {
   if (!data) return null;
   const { data: fotos } = await supabase.from('imovel_fotos').select('url, thumb_url, ordem').eq('imovel_id', data.id).order('ordem');
   return { ...data, fotos: fotos || [] };
+}
+
+// Imóveis parecidos (mesma finalidade, bairro e preço próximos) para a pessoa
+// continuar olhando sem ter que voltar para a home.
+async function getParecidos(im) {
+  try {
+    const supabase = createClient();
+    const { data } = await supabase
+      .from('imoveis')
+      .select('*, imovel_fotos(url, thumb_url, ordem)')
+      .eq('status', 'ativo')
+      .eq('finalidade', im.finalidade)
+      .neq('id', im.id)
+      .limit(200);
+    return parecidosCom(im, data || [], 8);
+  } catch (e) { return []; }
 }
 
 // SEO por imóvel — title na fórmula, description e OG
@@ -50,10 +67,11 @@ function jsonLd(im) {
 export default async function ImovelPage({ params }) {
   const im = await getImovel(params.slug);
   if (!im) notFound();
+  const parecidos = await getParecidos(im);
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd(im)) }} />
-      <DetailClient im={im} precoFmt={formatPreco(im.preco_cents)} />
+      <DetailClient im={im} precoFmt={formatPreco(im.preco_cents)} parecidos={parecidos} />
     </>
   );
 }

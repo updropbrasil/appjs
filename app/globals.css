@@ -33,3 +33,10 @@ button { cursor: pointer; }
 
 .container { max-width: 1560px; margin: 0 auto; padding: 0 56px; }
 @media (max-width: 720px) { .container { padding: 0 20px; } }
+
+/* cabeçalho da home e itens só do computador (resolvido no CSS para o celular já abrir no tamanho certo) */
+.cab-home { padding: 16px 56px; }
+@media (max-width: 720px) {
+  .cab-home { padding: 14px 20px; }
+  .so-pc { display: none !important; }
+}

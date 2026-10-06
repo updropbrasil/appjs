@@ -313,7 +313,7 @@ export default function PortalClient({ imoveis, heroVideo, heroVideoFile }) {
         )}
 
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(auto-fill,minmax(210px,1fr))', gap: isMobile ? 12 : 20 }}>
-          {lista.map((im, i) => <CardImovel key={im.id} im={im} compacto={isMobile} autoVideo={!isMobile} origin={origin} priority={i < 4} onAbrir={() => lembrarRolagem(query)} />)}
+          {lista.map((im, i) => <CardImovel key={im.id} im={im} compacto={isMobile} autoVideo umPorVez={isMobile} origin={origin} priority={i < 4} onAbrir={() => lembrarRolagem(query)} />)}
         </div>
         {lista.length === 0 && (
           <div style={{ textAlign: 'center', padding: 48, color: 'var(--muted)' }}>

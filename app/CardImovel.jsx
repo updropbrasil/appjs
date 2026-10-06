@@ -5,9 +5,20 @@ import { MOBILIA_LABELS, ytId, ytThumb, ytEmbed, formatPreco } from '../lib/form
 
 // Cartão de imóvel usado na home e nos "Imóveis parecidos".
 // compacto = celular em 2 colunas (texto menor, foto 3:4).
-// autoVideo = toca a prévia do vídeo quando o cartão aparece (só no computador,
-// para não abrir vários vídeos ao mesmo tempo no 4G).
-export default function CardImovel({ im, compacto = false, autoVideo = true, priority = false, origin = '', onAbrir }) {
+// autoVideo = toca a prévia do vídeo quando o cartão aparece.
+// umPorVez = no celular, só o cartão mais visível na tela toca (economiza 4G e bateria).
+
+// Coordenador do "um por vez": cada cartão informa quanto está visível; o mais visível toca.
+const visibilidade = new Map();
+const avisos = new Set();
+let tocando = null;
+function atualizarQuemToca() {
+  let melhor = null, nota = 0.6; // precisa estar pelo menos 60% na tela
+  visibilidade.forEach((v, id) => { if (v > nota + 0.01) { melhor = id; nota = v; } });
+  if (melhor !== tocando) { tocando = melhor; avisos.forEach(fn => fn(tocando)); }
+}
+
+export default function CardImovel({ im, compacto = false, autoVideo = true, umPorVez = false, priority = false, origin = '', onAbrir }) {
   const vid = ytId(im.youtube_url);
   const nativo = !vid && im.video_file_url;
   const f0 = (im.imovel_fotos || []).slice().sort((a, b) => (a.ordem || 0) - (b.ordem || 0))[0];
@@ -16,13 +27,22 @@ export default function CardImovel({ im, compacto = false, autoVideo = true, pri
   const ref = useRef(null);
   const [visivel, setVisivel] = useState(false);
   const [hover, setHover] = useState(false);
+  const [vez, setVez] = useState(false);
   useEffect(() => {
     if (!autoVideo || !nativo || !ref.current) return;
-    const io = new IntersectionObserver(([e]) => setVisivel(e.isIntersecting), { threshold: 0.55 });
+    if (!umPorVez) {
+      const io = new IntersectionObserver(([e]) => setVisivel(e.isIntersecting), { threshold: 0.55 });
+      io.observe(ref.current);
+      return () => io.disconnect();
+    }
+    const id = im.id;
+    const aviso = (quem) => setVez(quem === id);
+    avisos.add(aviso);
+    const io = new IntersectionObserver(([e]) => { visibilidade.set(id, e.intersectionRatio); atualizarQuemToca(); }, { threshold: [0, 0.25, 0.5, 0.6, 0.7, 0.8, 0.9, 1] });
     io.observe(ref.current);
-    return () => io.disconnect();
-  }, [nativo, autoVideo]);
-  const tocar = autoVideo && nativo && (visivel || hover);
+    return () => { io.disconnect(); avisos.delete(aviso); visibilidade.delete(id); if (tocando === id) { tocando = null; atualizarQuemToca(); } };
+  }, [nativo, autoVideo, umPorVez, im.id]);
+  const tocar = autoVideo && nativo && (umPorVez ? vez : (visivel || hover));
 
   return (
     <Link ref={ref} href={`/imovel/${im.slug}`} onClick={onAbrir}

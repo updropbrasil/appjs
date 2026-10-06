@@ -167,7 +167,7 @@ export default function DetailClient({ im, precoFmt, parecidos = [] }) {
               <Link href={`/?f=${ehAluguel ? 'aluguel' : 'venda'}#lista`} style={{ fontSize: 13.5, fontWeight: 700 }}>Ver todos →</Link>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(auto-fill,minmax(210px,1fr))', gap: isMobile ? 12 : 20 }}>
-              {parecidos.map(p => <CardImovel key={p.id} im={p} compacto={isMobile} autoVideo={!isMobile} origin={origin} />)}
+              {parecidos.map(p => <CardImovel key={p.id} im={p} compacto={isMobile} autoVideo umPorVez={isMobile} origin={origin} />)}
             </div>
             <div style={{ display: 'flex', justifyContent: 'center', marginTop: isMobile ? 20 : 28 }}>
               <Link href={`/?f=${ehAluguel ? 'aluguel' : 'venda'}#lista`} style={{ border: '1px solid rgba(232,168,124,.5)', color: 'var(--accent)', padding: '12px 22px', borderRadius: 10, fontSize: 14, fontWeight: 700 }}>

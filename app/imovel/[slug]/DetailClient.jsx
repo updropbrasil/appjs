@@ -5,6 +5,7 @@ import { ytId, ytThumb, ytEmbed, MOBILIA_LABELS, whatsappLink, formatPreco } fro
 import { trackViewImovel, trackWhatsApp } from '../../../lib/track';
 import { ultimaBusca } from '../../../lib/busca';
 import CardImovel from '../../CardImovel';
+import IconeWhats from '../../IconeWhats';
 
 export default function DetailClient({ im, precoFmt, parecidos = [] }) {
   const vid = ytId(im.youtube_url);
@@ -81,7 +82,7 @@ export default function DetailClient({ im, precoFmt, parecidos = [] }) {
         <Link href="/" style={{ display: 'flex', alignItems: 'center' }} aria-label="Jason Dias Imóveis">
           <img src="/logo-jason-dias.jpg" alt="Jason Dias Imóveis" style={{ height: 34, width: 'auto', mixBlendMode: 'screen' }} />
         </Link>
-        <a href={wa} target="_blank" rel="noopener" onClick={() => trackWhatsApp(im)} style={{ background: 'var(--accent)', color: '#2A2117', padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap' }}>WhatsApp</a>
+        <a href={wa} target="_blank" rel="noopener" onClick={() => trackWhatsApp(im)} style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'var(--wa)', color: 'var(--wa-texto)', padding: '10px 16px', borderRadius: 8, fontSize: 13, fontWeight: 800, whiteSpace: 'nowrap' }}><IconeWhats size={16} />WhatsApp</a>
       </header>
 
       <div className="container" style={{ paddingTop: 20, paddingBottom: isMobile ? 40 : 90 }}>
@@ -150,7 +151,7 @@ export default function DetailClient({ im, precoFmt, parecidos = [] }) {
               <div style={{ fontSize: 12, color: 'var(--muted)' }}>🔒 Endereço exato informado no WhatsApp</div>
             </div>
 
-            <a href={wa} target="_blank" rel="noopener" onClick={() => trackWhatsApp(im)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, background: 'var(--accent)', color: '#2A2117', padding: 16, borderRadius: 12, fontSize: 15.5, fontWeight: 700, maxWidth: 440 }}>Tenho interesse — falar no WhatsApp</a>
+            <a href={wa} target="_blank" rel="noopener" onClick={() => trackWhatsApp(im)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, background: 'var(--wa)', color: 'var(--wa-texto)', padding: 16, borderRadius: 12, fontSize: 15.5, fontWeight: 800, maxWidth: 440 }}><IconeWhats size={20} />Tenho interesse — falar no WhatsApp</a>
             <p style={{ fontSize: 12, lineHeight: 1.55, color: 'var(--muted)', margin: 0, maxWidth: 440 }}>
               Valores de condomínio e IPTU são informativos e podem sofrer alterações ou conter imprecisões. Imóvel sujeito a disponibilidade.
             </p>
@@ -186,8 +187,8 @@ export default function DetailClient({ im, precoFmt, parecidos = [] }) {
             <div style={{ fontSize: 11.5, color: 'var(--taupe)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{im.bairro}{im.codigo ? ` · ${im.codigo}` : ''}</div>
           </div>
           <a href={wa} target="_blank" rel="noopener" onClick={() => trackWhatsApp(im)}
-            style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 8, background: '#25D366', color: '#0B2915', padding: '13px 18px', borderRadius: 12, fontSize: 15, fontWeight: 800 }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.3-.4.7-1.4.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.2 2.2 2.2 0 0 0 .2-1.3c-.1-.1-.3-.2-.5-.3z"/></svg>
+            style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 8, background: 'var(--wa)', color: 'var(--wa-texto)', padding: '13px 18px', borderRadius: 12, fontSize: 15, fontWeight: 800 }}>
+            <IconeWhats size={18} />
             WhatsApp
           </a>
         </div>

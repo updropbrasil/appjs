@@ -5,6 +5,7 @@ import { ytId, ytEmbed, maskThousands, whatsappLink } from '../lib/format';
 import { trackWhatsApp } from '../lib/track';
 import { semAcento, soLetrasNumeros, FILTROS_PADRAO, filtrosDaUrl, urlDosFiltros, lembrarBusca, lembrarRolagem, pegarRolagem } from '../lib/busca';
 import CardImovel from './CardImovel';
+import IconeWhats from './IconeWhats';
 
 const QUARTOS = ['1', '2', '3', '4'];
 const ORDENS = [
@@ -135,8 +136,8 @@ export default function PortalClient({ imoveis, heroVideo, heroVideoFile }) {
               <button onClick={() => goToList('venda')} style={navLink}>Comprar</button>
               <button onClick={() => goToList('todos')} style={navLink}>Imóveis</button>
             </nav>
-            <a href={wa} target="_blank" rel="noopener" onClick={() => trackWhatsApp({})} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--accent)', color: '#2A2117', padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 700 }}>
-              WhatsApp
+            <a href={wa} target="_blank" rel="noopener" onClick={() => trackWhatsApp({})} style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'var(--wa)', color: 'var(--wa-texto)', padding: '10px 16px', borderRadius: 8, fontSize: 13, fontWeight: 800 }}>
+              <IconeWhats size={16} />WhatsApp
             </a>
             <Link href="/admin/login" title="Área do corretor" aria-label="Área do corretor"
               style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, borderRadius: 999, border: '1px solid rgba(243,237,227,.14)', color: '#7a6c59', flex: 'none' }}>

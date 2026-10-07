@@ -58,7 +58,7 @@ export default async function RootLayout({ children }) {
         {ga ? (
           <>
             <Script src={`https://www.googletagmanager.com/gtag/js?id=${ga}`} strategy="afterInteractive" />
-            <Script id="ga" strategy="afterInteractive">{`
+            <Script id="init-ga" strategy="afterInteractive">{`
               window.dataLayer = window.dataLayer || [];
               function gtag(){dataLayer.push(arguments);}
               gtag('js', new Date());
@@ -83,7 +83,7 @@ export default async function RootLayout({ children }) {
         ) : null}
 
         {clarity ? (
-          <Script id="clarity" strategy="afterInteractive">{`
+          <Script id="init-clarity" strategy="afterInteractive">{`
             (function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
             t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
             y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);})(window,document,"clarity","script","${clarity}");

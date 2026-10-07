@@ -2,7 +2,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { ytId, ytEmbed, maskThousands, whatsappLink } from '../lib/format';
-import { trackWhatsApp } from '../lib/track';
+import FormWhats from './FormWhats';
 import { semAcento, soLetrasNumeros, FILTROS_PADRAO, filtrosDaUrl, urlDosFiltros, lembrarBusca, lembrarRolagem, pegarRolagem } from '../lib/busca';
 import CardImovel from './CardImovel';
 import IconeWhats from './IconeWhats';
@@ -36,6 +36,8 @@ export default function PortalClient({ imoveis, heroVideo, heroVideoFile, whats 
   const [showFilters, setShowFilters] = useState(false);
   const [heroPlaying, setHeroPlaying] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [formWa, setFormWa] = useState(false);
+  const abrirForm = (e) => { e.preventDefault(); setFormWa(true); };
   const [origin, setOrigin] = useState('');
   useEffect(() => { setOrigin(window.location.origin); }, []);
   useEffect(() => {
@@ -136,7 +138,7 @@ export default function PortalClient({ imoveis, heroVideo, heroVideoFile, whats 
               <button onClick={() => goToList('venda')} style={navLink}>Comprar</button>
               <button onClick={() => goToList('todos')} style={navLink}>Imóveis</button>
             </nav>
-            <a href={wa} target="_blank" rel="noopener" onClick={() => trackWhatsApp({})} style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'var(--wa)', color: 'var(--wa-texto)', padding: '10px 16px', borderRadius: 8, fontSize: 13, fontWeight: 800 }}>
+            <a href={wa} target="_blank" rel="noopener" onClick={abrirForm} style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'var(--wa)', color: 'var(--wa-texto)', padding: '10px 16px', borderRadius: 8, fontSize: 13, fontWeight: 800 }}>
               <IconeWhats size={16} />WhatsApp
             </a>
             <Link href="/admin/login" title="Área do corretor" aria-label="Área do corretor"
@@ -346,6 +348,7 @@ export default function PortalClient({ imoveis, heroVideo, heroVideoFile, whats 
         <span>João Pessoa · PB — Aluguel e venda de médio-alto padrão</span>
         <Link href="/admin/login" style={{ fontSize: 11.5, color: '#6b5f4e' }}>Área do corretor</Link>
       </footer>
+      <FormWhats aberto={formWa} onFechar={() => setFormWa(false)} im={null} wa={wa} />
     </div>
   );
 }

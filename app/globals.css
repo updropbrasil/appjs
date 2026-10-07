@@ -42,3 +42,8 @@ button { cursor: pointer; }
   .cab-home { padding: 14px 20px; }
   .so-pc { display: none !important; }
 }
+
+/* Formulário do WhatsApp: no celular sobe de baixo; no computador fica no meio */
+@media (min-width: 721px) {
+  .form-whats { border-radius: 18px !important; margin-top: auto; margin-bottom: auto; }
+}

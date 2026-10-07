@@ -2,10 +2,11 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { ytId, ytThumb, ytEmbed, MOBILIA_LABELS, whatsappLink, formatPreco } from '../../../lib/format';
-import { trackViewImovel, trackWhatsApp } from '../../../lib/track';
+import { trackViewImovel } from '../../../lib/track';
 import { ultimaBusca } from '../../../lib/busca';
 import CardImovel from '../../CardImovel';
 import IconeWhats from '../../IconeWhats';
+import FormWhats from '../../FormWhats';
 
 export default function DetailClient({ im, precoFmt, parecidos = [], whats }) {
   const vid = ytId(im.youtube_url);
@@ -19,6 +20,9 @@ export default function DetailClient({ im, precoFmt, parecidos = [], whats }) {
   // "Voltar aos imóveis" leva para a mesma busca que a pessoa tinha feito (filtros e posição na lista)
   const [voltar, setVoltar] = useState('/#lista');
   const [isMobile, setIsMobile] = useState(false);
+  // Botões de WhatsApp abrem o mini formulário (nome + WhatsApp); o SDR chama a pessoa
+  const [formWa, setFormWa] = useState(false);
+  const abrirForm = (e) => { e.preventDefault(); setFormWa(true); };
   useEffect(() => {
     setOrigin(window.location.origin);
     setVoltar('/' + ultimaBusca() + '#lista');
@@ -82,7 +86,7 @@ export default function DetailClient({ im, precoFmt, parecidos = [], whats }) {
         <Link href="/" style={{ display: 'flex', alignItems: 'center' }} aria-label="Jason Dias Imóveis">
           <img src="/logo-jason-dias.jpg" alt="Jason Dias Imóveis" style={{ height: 34, width: 'auto', mixBlendMode: 'screen' }} />
         </Link>
-        <a href={wa} target="_blank" rel="noopener" onClick={() => trackWhatsApp(im)} style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'var(--wa)', color: 'var(--wa-texto)', padding: '10px 16px', borderRadius: 8, fontSize: 13, fontWeight: 800, whiteSpace: 'nowrap' }}><IconeWhats size={16} />WhatsApp</a>
+        <a href={wa} target="_blank" rel="noopener" onClick={abrirForm} style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'var(--wa)', color: 'var(--wa-texto)', padding: '10px 16px', borderRadius: 8, fontSize: 13, fontWeight: 800, whiteSpace: 'nowrap' }}><IconeWhats size={16} />WhatsApp</a>
       </header>
 
       <div className="container" style={{ paddingTop: 20, paddingBottom: isMobile ? 40 : 90 }}>
@@ -151,7 +155,7 @@ export default function DetailClient({ im, precoFmt, parecidos = [], whats }) {
               <div style={{ fontSize: 12, color: 'var(--muted)' }}>🔒 Endereço exato informado no WhatsApp</div>
             </div>
 
-            <a href={wa} target="_blank" rel="noopener" onClick={() => trackWhatsApp(im)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, background: 'var(--wa)', color: 'var(--wa-texto)', padding: 16, borderRadius: 12, fontSize: 15.5, fontWeight: 800, maxWidth: 440 }}><IconeWhats size={20} />Tenho interesse — falar no WhatsApp</a>
+            <a href={wa} target="_blank" rel="noopener" onClick={abrirForm} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, background: 'var(--wa)', color: 'var(--wa-texto)', padding: 16, borderRadius: 12, fontSize: 15.5, fontWeight: 800, maxWidth: 440 }}><IconeWhats size={20} />Tenho interesse — falar no WhatsApp</a>
             <p style={{ fontSize: 12, lineHeight: 1.55, color: 'var(--muted)', margin: 0, maxWidth: 440 }}>
               Valores de condomínio e IPTU são informativos e podem sofrer alterações ou conter imprecisões. Imóvel sujeito a disponibilidade.
             </p>
@@ -186,7 +190,7 @@ export default function DetailClient({ im, precoFmt, parecidos = [], whats }) {
             <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--cream-2)', whiteSpace: 'nowrap' }}>{precoFmt}<span style={{ fontSize: 12, fontWeight: 400, color: 'var(--taupe)' }}>{ehAluguel ? '/mês' : ''}</span></div>
             <div style={{ fontSize: 11.5, color: 'var(--taupe)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{im.bairro}{im.codigo ? ` · ${im.codigo}` : ''}</div>
           </div>
-          <a href={wa} target="_blank" rel="noopener" onClick={() => trackWhatsApp(im)}
+          <a href={wa} target="_blank" rel="noopener" onClick={abrirForm}
             style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 8, background: 'var(--wa)', color: 'var(--wa-texto)', padding: '13px 18px', borderRadius: 12, fontSize: 15, fontWeight: 800 }}>
             <IconeWhats size={18} />
             WhatsApp
@@ -230,6 +234,7 @@ export default function DetailClient({ im, precoFmt, parecidos = [], whats }) {
           </div>
         </div>
       )}
+      <FormWhats aberto={formWa} onFechar={() => setFormWa(false)} im={im} wa={wa} />
     </div>
   );
 }

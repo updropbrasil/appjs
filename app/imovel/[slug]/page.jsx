@@ -3,6 +3,7 @@ import { createPublicClient as createClient, whatsappDoSite } from '../../../lib
 import DetailClient from './DetailClient';
 import { formatPreco, MOBILIA_SEO } from '../../../lib/format';
 import { parecidosCom } from '../../../lib/busca';
+import { resumoDescricao } from '../../../lib/descricao';
 
 export const revalidate = 60;
 // Gera cada imóvel na primeira visita e guarda pronto (atualiza a cada 60 s).
@@ -38,7 +39,7 @@ export async function generateMetadata({ params }) {
   const im = await getImovel(params.slug);
   if (!im) return { title: 'Imóvel não encontrado' };
   const title = im.titulo;
-  const description = (im.descricao || `${im.categoria} ${MOBILIA_SEO[im.mobilia] || ''} ${im.finalidade === 'aluguel' ? 'para alugar' : 'à venda'} no ${im.bairro}, em João Pessoa.`).trim();
+  const description = (resumoDescricao(im.descricao) || `${im.categoria} ${MOBILIA_SEO[im.mobilia] || ''} ${im.finalidade === 'aluguel' ? 'para alugar' : 'à venda'} no ${im.bairro}, em João Pessoa.`).trim();
   const img = im.capa_url || (im.video_id ? `https://i.ytimg.com/vi/${im.video_id}/maxresdefault.jpg` : undefined);
   return {
     title,
@@ -54,7 +55,7 @@ function jsonLd(im) {
     '@context': 'https://schema.org',
     '@type': ['Product', 'Residence'],
     name: im.titulo,
-    description: im.descricao || undefined,
+    description: resumoDescricao(im.descricao) || undefined,
     category: im.categoria,
     offers: {
       '@type': 'Offer',

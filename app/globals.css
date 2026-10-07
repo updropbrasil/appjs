@@ -47,3 +47,7 @@ button { cursor: pointer; }
 @media (min-width: 721px) {
   .form-whats { border-radius: 18px !important; margin-top: auto; margin-bottom: auto; }
 }
+
+/* características do imóvel: 1 coluna no celular, 2 no computador */
+.desc-itens { grid-template-columns: 1fr; }
+@media (min-width: 520px) { .desc-itens { grid-template-columns: 1fr 1fr; } }

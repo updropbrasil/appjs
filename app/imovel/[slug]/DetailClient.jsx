@@ -7,6 +7,7 @@ import { ultimaBusca } from '../../../lib/busca';
 import CardImovel from '../../CardImovel';
 import IconeWhats from '../../IconeWhats';
 import FormWhats from '../../FormWhats';
+import { organizaDescricao } from '../../../lib/descricao';
 
 export default function DetailClient({ im, precoFmt, parecidos = [], whats }) {
   const vid = ytId(im.youtube_url);
@@ -147,7 +148,7 @@ export default function DetailClient({ im, precoFmt, parecidos = [], whats }) {
               ))}
             </div>
 
-            {im.descricao && <p style={{ fontSize: 14.5, color: 'var(--sand)', lineHeight: 1.65, maxWidth: 560 }}>{im.descricao}</p>}
+            {im.descricao && <Descricao texto={im.descricao} />}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 12, padding: '16px 18px', maxWidth: 440 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 700, color: 'var(--cream-2)' }}>📍 {im.bairro} · João Pessoa</div>
@@ -250,3 +251,41 @@ const navBtn = (side) => ({
   width: 44, height: 44, borderRadius: 999, background: 'rgba(31,24,18,.75)', color: '#F3EDE3',
   border: 0, fontSize: 22, cursor: 'pointer', zIndex: 5
 });
+
+// Descrição organizada: abertura em texto, características em lista (uma embaixo da outra)
+function Descricao({ texto }) {
+  const { paragrafos, itens, notas } = organizaDescricao(texto);
+  const [todas, setTodas] = useState(false);
+  const LIMITE = 12;
+  const recolhe = itens.length > LIMITE + 4; // só recolhe lista grande
+  const visiveis = todas || !recolhe ? itens : itens.slice(0, LIMITE);
+  if (!paragrafos.length && !itens.length && !notas.length) return null;
+  return (
+    <div style={{ maxWidth: 560 }}>
+      {paragrafos.map((t, k) => <p key={k} style={{ fontSize: 14.5, color: 'var(--sand)', lineHeight: 1.65, margin: k ? '10px 0 0' : 0 }}>{t}</p>)}
+      {itens.length > 0 && (
+        <div style={{ marginTop: paragrafos.length ? 18 : 0 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '.12em', color: 'var(--taupe)', marginBottom: 10 }}>O QUE O IMÓVEL TEM</div>
+          <ul className="desc-itens" style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: '8px 18px' }}>
+            {visiveis.map((t) => (
+              <li key={t} style={{ display: 'flex', alignItems: 'flex-start', gap: 9, fontSize: 14.5, color: 'var(--cream-2)', lineHeight: 1.4 }}>
+                <span aria-hidden="true" style={{ flex: '0 0 18px', height: 18, marginTop: 1, borderRadius: 999, background: 'rgba(232,168,124,.16)', color: 'var(--accent)', display: 'grid', placeItems: 'center', fontSize: 11, fontWeight: 800 }}>✓</span>
+                <span>{t}</span>
+              </li>
+            ))}
+          </ul>
+          {recolhe && (
+            <button onClick={() => setTodas(!todas)} style={{ marginTop: 12, background: 'none', border: 0, padding: 0, color: 'var(--accent)', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>
+              {todas ? 'Mostrar menos' : `Ver todas as ${itens.length} características`}
+            </button>
+          )}
+        </div>
+      )}
+      {notas.length > 0 && (
+        <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {notas.map((t, k) => <p key={k} style={{ fontSize: 14.5, color: 'var(--sand)', lineHeight: 1.6, margin: 0 }}>{t}</p>)}
+        </div>
+      )}
+    </div>
+  );
+}

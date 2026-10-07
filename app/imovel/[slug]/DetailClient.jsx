@@ -68,6 +68,14 @@ export default function DetailClient({ im, precoFmt, parecidos = [], whats }) {
     scrollTo(full ? fullTrackRef : trackRef, t);
   };
   const cur = slides[idx] || {};
+  const temVideo = !!(vid || nativo);
+  // abre a foto k (das fotos, sem contar o vídeo) direto na tela cheia
+  const abrirFoto = (k) => {
+    const t = Math.max(0, Math.min(slides.length - 1, k + (temVideo ? 1 : 0)));
+    setIdx(t);
+    const el = trackRef.current; if (el) el.scrollLeft = el.clientWidth * t;
+    setFull(true);
+  };
   const wa = whatsappLink(`Olá! Tenho interesse no imóvel ${im.codigo ? `(cód. ${im.codigo}) ` : ''}"${im.titulo}" no ${im.bairro}. Pode me passar mais informações?`, whats);
 
   const taxa = (tipo, cents) => tipo === 'isento' ? 'Isento'
@@ -95,7 +103,8 @@ export default function DetailClient({ im, precoFmt, parecidos = [], whats }) {
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 48, alignItems: 'flex-start' }}>
           {/* MÍDIA */}
-          <div style={{ width: 360, maxWidth: '100%', flex: '1 1 320px', position: 'relative', aspectRatio: '9/16', maxHeight: 640, borderRadius: 18, overflow: 'hidden', background: 'linear-gradient(150deg,#6B5A44,#463928)', boxShadow: '0 20px 60px rgba(0,0,0,.4)' }}>
+          <div style={{ width: 360, maxWidth: '100%', flex: '1 1 320px' }}>
+          <div style={{ width: '100%', position: 'relative', aspectRatio: '9/16', maxHeight: 640, borderRadius: 18, overflow: 'hidden', background: 'linear-gradient(150deg,#6B5A44,#463928)', boxShadow: '0 20px 60px rgba(0,0,0,.4)' }}>
             <div ref={trackRef} onScroll={onTrackScroll} className="no-scrollbar"
               style={{ position: 'absolute', inset: 0, display: 'flex', overflowX: 'auto', overflowY: 'hidden', scrollSnapType: 'x mandatory', WebkitOverflowScrolling: 'touch' }}>
               {slides.map((s, k) => (
@@ -120,6 +129,11 @@ export default function DetailClient({ im, precoFmt, parecidos = [], whats }) {
             {!cur.video && (
               <button onClick={() => setFull(true)} style={{ position: 'absolute', top: 12, right: 12, display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(31,24,18,.75)', color: '#F3EDE3', border: 0, borderRadius: 8, padding: '8px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', zIndex: 6 }}>⤢ Tela cheia</button>
             )}
+            {cur.video && fotos.length > 0 && (
+              <button onClick={() => go(1)} style={{ position: 'absolute', left: 12, top: 12, zIndex: 6, display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(31,24,18,.78)', color: '#F3EDE3', border: '1px solid rgba(243,237,227,.18)', borderRadius: 999, padding: '7px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                Deslize para ver {fotos.length} {fotos.length === 1 ? 'foto' : 'fotos'} →
+              </button>
+            )}
             {idx > 0 && <button onClick={() => go(idx - 1)} style={navBtn('left')}>‹</button>}
             {idx < slides.length - 1 && <button onClick={() => go(idx + 1)} style={navBtn('right')}>›</button>}
             <div style={{ position: 'absolute', bottom: 14, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6, zIndex: 6 }}>
@@ -127,6 +141,27 @@ export default function DetailClient({ im, precoFmt, parecidos = [], whats }) {
                 <button key={k} onClick={() => go(k)} style={{ width: k === idx ? 20 : 6, height: 6, borderRadius: 999, border: 0, background: k === idx ? 'var(--accent)' : 'rgba(243,237,227,.5)', cursor: 'pointer', padding: 0 }} />
               ))}
             </div>
+          </div>
+            {/* FOTOS embaixo do vídeo: muita gente não percebe que dá para deslizar */}
+            {fotos.length > 0 && (
+              <div style={{ marginTop: 14 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
+                  <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--cream-2)' }}>{fotos.length} {fotos.length === 1 ? 'foto' : 'fotos'}</span>
+                  <button onClick={() => abrirFoto(0)} style={{ background: 'none', border: 0, padding: 0, color: 'var(--accent)', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Ver todas em tela cheia</button>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6 }}>
+                  {fotos.slice(0, 6).map((f, k) => (
+                    <button key={k} onClick={() => abrirFoto(k)} aria-label={`Abrir foto ${k + 1}`}
+                      style={{ position: 'relative', aspectRatio: '1', padding: 0, border: 0, borderRadius: 8, overflow: 'hidden', background: 'var(--bg-2)', cursor: 'zoom-in' }}>
+                      <img src={f.thumb_url || f.url || f} alt="" loading="lazy" decoding="async" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+                      {k === 5 && fotos.length > 6 && (
+                        <span style={{ position: 'absolute', inset: 0, background: 'rgba(15,11,8,.62)', color: '#FAF7F2', display: 'grid', placeItems: 'center', fontSize: 18, fontWeight: 800 }}>+{fotos.length - 6}</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* INFO */}
@@ -150,11 +185,7 @@ export default function DetailClient({ im, precoFmt, parecidos = [], whats }) {
 
             {im.descricao && <Descricao texto={im.descricao} />}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 12, padding: '16px 18px', maxWidth: 440 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 700, color: 'var(--cream-2)' }}>📍 {im.bairro} · João Pessoa</div>
-              {im.referencia && <div style={{ fontSize: 13, color: 'var(--taupe)', lineHeight: 1.5 }}>{im.referencia}</div>}
-              <div style={{ fontSize: 12, color: 'var(--muted)' }}>🔒 Endereço exato informado no WhatsApp</div>
-            </div>
+            <Localizacao im={im} />
 
             <a href={wa} target="_blank" rel="noopener" onClick={abrirForm} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, background: 'var(--wa)', color: 'var(--wa-texto)', padding: 16, borderRadius: 12, fontSize: 15.5, fontWeight: 800, maxWidth: 440 }}><IconeWhats size={20} />Tenho interesse — falar no WhatsApp</a>
             <p style={{ fontSize: 12, lineHeight: 1.55, color: 'var(--muted)', margin: 0, maxWidth: 440 }}>
@@ -286,6 +317,31 @@ function Descricao({ texto }) {
           {notas.map((t, k) => <p key={k} style={{ fontSize: 14.5, color: 'var(--sand)', lineHeight: 1.6, margin: 0 }}>{t}</p>)}
         </div>
       )}
+    </div>
+  );
+}
+
+// Localização aproximada: rua (sem número) e bairro. O mapa só carrega quando a pessoa toca,
+// para não pesar a página. O endereço exato continua indo só pelo WhatsApp.
+function Localizacao({ im }) {
+  const [mapa, setMapa] = useState(false);
+  const cidade = im.cidade || 'João Pessoa';
+  const q = [im.rua, im.bairro, cidade, 'PB'].filter(Boolean).join(', ');
+  const src = `https://maps.google.com/maps?q=${encodeURIComponent(q)}&z=${im.rua ? 15 : 14}&output=embed`;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 12, padding: '16px 18px', maxWidth: 440 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 700, color: 'var(--cream-2)' }}>📍 {im.bairro} · {cidade}</div>
+      {im.rua && <div style={{ fontSize: 13, color: 'var(--sand)' }}>{im.rua}</div>}
+      {im.referencia && <div style={{ fontSize: 13, color: 'var(--taupe)', lineHeight: 1.5 }}>{im.referencia}</div>}
+      {mapa ? (
+        <iframe src={src} title={`Localização aproximada — ${im.bairro}`} loading="lazy" referrerPolicy="no-referrer-when-downgrade"
+          style={{ width: '100%', height: 230, border: 0, borderRadius: 10, marginTop: 4, background: 'var(--bg)' }} />
+      ) : (
+        <button onClick={() => setMapa(true)} style={{ marginTop: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', background: 'rgba(232,168,124,.1)', color: 'var(--accent)', border: '1px solid rgba(232,168,124,.35)', borderRadius: 10, padding: '12px 14px', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+          🗺️ Ver a região no mapa
+        </button>
+      )}
+      <div style={{ fontSize: 12, color: 'var(--muted)' }}>🔒 Localização aproximada. O endereço exato vai no WhatsApp.</div>
     </div>
   );
 }

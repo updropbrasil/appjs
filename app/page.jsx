@@ -1,5 +1,6 @@
 import { createPublicClient as createClient, whatsappDoSite } from '../lib/supabase-public';
 import PortalClient from './PortalClient';
+import { imovelPublico } from '../lib/publico';
 
 export const revalidate = 60; // ISR: revalida a cada 60s
 
@@ -12,7 +13,7 @@ async function getImoveis() {
     .order('destaque', { ascending: false })
     .order('created_at', { ascending: false });
   if (error) { console.error(error); return []; }
-  return data || [];
+  return (data || []).map(imovelPublico); // sem endereço com número, contato interno e parceiro
 }
 
 async function getHero() {

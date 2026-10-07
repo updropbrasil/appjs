@@ -4,6 +4,7 @@ import DetailClient from './DetailClient';
 import { formatPreco, MOBILIA_SEO } from '../../../lib/format';
 import { parecidosCom } from '../../../lib/busca';
 import { resumoDescricao } from '../../../lib/descricao';
+import { imovelPublico } from '../../../lib/publico';
 
 export const revalidate = 60;
 // Gera cada imóvel na primeira visita e guarda pronto (atualiza a cada 60 s).
@@ -75,7 +76,7 @@ export default async function ImovelPage({ params }) {
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd(im)) }} />
-      <DetailClient im={im} precoFmt={formatPreco(im.preco_cents)} parecidos={parecidos} whats={whats} />
+      <DetailClient im={imovelPublico(im)} precoFmt={formatPreco(im.preco_cents)} parecidos={parecidos.map(imovelPublico)} whats={whats} />
     </>
   );
 }

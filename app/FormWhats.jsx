@@ -115,7 +115,7 @@ export default function FormWhats({ aberto, onFechar, im, wa }) {
           <form onSubmit={enviar} noValidate>
             <div style={{ fontSize: 19, fontWeight: 800, paddingRight: 28 }}>Fale com um corretor no WhatsApp</div>
             <p style={{ fontSize: 14, color: '#5b4d3d', lineHeight: 1.5, margin: '6px 0 16px' }}>
-              Deixe seu nome e WhatsApp que a gente te chama em instantes{im?.codigo ? ` com fotos, valores e o tour do ${im.codigo}` : ''}.
+              Deixe seu nome e WhatsApp que um corretor te chama agora para tirar suas dúvidas{im?.codigo ? ` sobre o ${im.codigo}` : ''} e combinar uma visita, presencial ou por chamada de vídeo se você mora fora.
             </p>
             <label style={rotulo} htmlFor="fw-nome">Seu nome</label>
             <input id="fw-nome" ref={primeiroCampo} value={nome} onChange={(e) => setNome(e.target.value.slice(0, 80))} autoComplete="name" placeholder="Como podemos te chamar?" style={{ ...campo, marginBottom: 12 }} />

@@ -122,7 +122,7 @@ export default function FormWhats({ aberto, onFechar, im, wa }) {
             <label style={rotulo} htmlFor="fw-tel">WhatsApp com DDD</label>
             <input id="fw-tel" value={tel} onChange={(e) => setTel(mascara(e.target.value))} type="tel" inputMode="tel" autoComplete="tel" placeholder="(83) 99999-9999" style={campo} />
             <div style={{ fontSize: 12, color: '#7a6c59', marginTop: 6 }}>Mora fora do Brasil? Comece com + e o código do país.</div>
-            <input tabIndex={-1} autoComplete="off" value={hp} onChange={(e) => setHp(e.target.value)} name="empresa" aria-hidden="true"
+            <input tabIndex={-1} autoComplete="new-password" value={hp} onChange={(e) => setHp(e.target.value)} name="jd_confirma_x" aria-hidden="true"
               style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, opacity: 0 }} />
             {erro && <div style={{ marginTop: 12, fontSize: 13.5, color: '#b42318', fontWeight: 600 }}>{erro}</div>}
             <button type="submit" disabled={enviando}

@@ -25,8 +25,11 @@ export async function POST(req) {
   let b;
   try { b = await req.json(); } catch { return Response.json({ ok: false, erro: 'Dados inválidos.' }, { status: 400 }); }
 
-  // robô: preencheu o campo invisível ou enviou rápido demais → finge que deu certo e não grava
-  if (b?.hp || (typeof b?.ms === 'number' && b.ms < 1500)) return Response.json({ ok: true });
+  // Antes, "campo invisível preenchido" ou "enviou em menos de 1,5 s" era descartado em silêncio.
+  // Isso derrubava gente de verdade: o preenchimento automático do celular completa nome, telefone
+  // (e às vezes o campo invisível) num toque. Agora o lead SEMPRE segue; só vai marcado como suspeito.
+  // Robô com número falso não recebe mensagem: o n8n confere se o número tem WhatsApp.
+  const suspeito = !!b?.hp || (typeof b?.ms === 'number' && b.ms < 1500);
 
   const ip = (req.headers.get('x-forwarded-for') || '').split(',')[0].trim() || req.headers.get('x-real-ip') || 'sem-ip';
   if (!limiteOk(ip)) return Response.json({ ok: false, erro: 'Muitas tentativas. Tente de novo em alguns minutos.' }, { status: 429 });
@@ -56,7 +59,7 @@ export async function POST(req) {
 
   const body = {
     name: nome,
-    message: `Pediu contato pelo formulário do site${anuncio ? ` (anúncio: ${anuncio})` : ''}${b?.pagina ? ` · página ${limpa(b.pagina, 120)}` : ''}`,
+    message: `Pediu contato pelo formulário do site${anuncio ? ` (anúncio: ${anuncio})` : ''}${b?.pagina ? ` · página ${limpa(b.pagina, 120)}` : ''}${suspeito ? ' · ⚠️ enviado muito rápido (pode ser preenchimento automático ou robô)' : ''}`,
     leadOrigin: 'Site',
     extraData: { leadType: 'FORM_WHATSAPP_SITE', utm },
   };

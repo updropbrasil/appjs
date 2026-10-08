@@ -14,6 +14,7 @@ const FEATURE_GRUPOS = [
   ['Serviços e segurança', ['Portaria 24h', 'Segurança 24h', 'Circuito de segurança', 'Alarme', 'Portão eletrônico', 'Interfone', 'Elevador', 'Gerador', 'Energia solar', 'Condomínio fechado', 'Acesso para deficientes']],
   ['Do imóvel', ['Varanda gourmet', 'Varanda', 'Vista para o mar', 'Ar condicionado', 'Closet', 'Cozinha americana', 'Cozinha planejada', 'Lavabo', 'Área de serviço', 'Escritório', 'Despensa', 'Hidromassagem', 'Lareira', 'Piscina privativa', 'Quintal', 'Jardim', 'Permite animais']],
 ];
+const POSICOES = ['Nascente', 'Nascente norte', 'Nascente sul', 'Poente', 'Poente norte', 'Poente sul', 'Norte', 'Sul'];
 const MOBILIAS = [['mobiliado', 'Mobiliado'], ['semi', 'Semimobiliado'], ['sem', 'Sem mobília'], ['planejados', 'Com planejados']];
 const STEPS = ['Tipo', 'Localização', 'Características', 'Valores', 'Vídeo e fotos', 'Revisão'];
 
@@ -82,7 +83,7 @@ export default function CadastroClient({ parceiros: parceirosIniciais, imovel, f
     finalidade: imovel.finalidade, categoria: imovel.categoria, titulo: imovel.titulo,
     bairro: imovel.bairro, endereco: imovel.endereco || '', referencia: imovel.referencia || '',
     mobilia: imovel.mobilia, quartos: imovel.quartos || 0, suites: imovel.suites || 0,
-    banheiros: imovel.banheiros || 0, vagas: imovel.vagas || 0, area: imovel.area_m2 || '', andar: imovel.andar || '',
+    banheiros: imovel.banheiros || 0, vagas: imovel.vagas || 0, area: imovel.area_m2 || '', andar: imovel.andar || '', posicao: imovel.posicao_solar || '',
     preco: imovel.preco_cents ? String(imovel.preco_cents / 100) : '',
     condominio: imovel.condominio_cents ? String(imovel.condominio_cents / 100) : '',
     iptu: imovel.iptu_cents ? String(imovel.iptu_cents / 100) : '',
@@ -96,7 +97,7 @@ export default function CadastroClient({ parceiros: parceirosIniciais, imovel, f
     features: Array.isArray(imovel.features) ? imovel.features : []
   } : {
     finalidade: 'aluguel', categoria: 'Apartamento', titulo: '', bairro: '', endereco: '', referencia: '',
-    mobilia: 'sem', quartos: 3, suites: 1, banheiros: 2, vagas: 2, area: '', andar: '', preco: '', condominio: '', iptu: '',
+    mobilia: 'sem', quartos: 3, suites: 1, banheiros: 2, vagas: 2, area: '', andar: '', posicao: '', preco: '', condominio: '', iptu: '',
     condominio_tipo: 'valor', iptu_tipo: 'valor',
     video: '', videoUrl: '', videoMode: 'link', descricao: '', parceiro_id: '', parceiro_pct: '', codigo: '', cep: '',
     numero: '', complemento: '', ano: '', contato_interno: '', features: [],
@@ -145,6 +146,7 @@ export default function CadastroClient({ parceiros: parceirosIniciais, imovel, f
     if (Number(form.vagas)) l.push(`✅ ${form.vagas} vaga${form.vagas > 1 ? 's' : ''} de garagem`);
     if (form.area) l.push(`✅ ${form.area} m²`);
     if (form.andar) l.push(`✅ ${/térreo/i.test(form.andar) ? 'Térreo' : form.andar + ' andar'}`);
+    if (form.posicao) l.push(`✅ Posição do sol: ${form.posicao}`);
     const mob = { mobiliado: 'Mobiliado', semi: 'Semimobiliado', planejados: 'Com móveis planejados' }[form.mobilia];
     if (mob) l.push(`✅ ${mob}`);
     (form.features || []).forEach(f => l.push(`✅ ${f}`));
@@ -212,6 +214,7 @@ export default function CadastroClient({ parceiros: parceirosIniciais, imovel, f
         bairro: form.bairro || 'João Pessoa', endereco: form.endereco, referencia: form.referencia,
         quartos: Number(form.quartos), suites: Number(form.suites), banheiros: Number(form.banheiros),
         vagas: Number(form.vagas), area_m2: form.area ? Number(String(form.area).replace(/\D/g, '')) : null, andar: form.andar || null,
+        posicao_solar: form.posicao || null,
         preco_cents: parsePreco(form.preco),
         condominio_cents: form.condominio_tipo === 'valor' ? parsePreco(form.condominio) : (form.condominio_tipo === 'nao_informado' ? null : 0),
         iptu_cents: form.iptu_tipo === 'valor' ? parsePreco(form.iptu) : (form.iptu_tipo === 'nao_informado' ? null : 0),
@@ -440,6 +443,14 @@ export default function CadastroClient({ parceiros: parceirosIniciais, imovel, f
                   <input value={form.andar} onChange={e => set({ andar: e.target.value })} placeholder="Ou escreva… ex.: 12º andar" style={inp} />
                 </Field>
               )}
+              <Field label="Posição do sol">
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {POSICOES.map(p => (
+                    <button key={p} onClick={() => set({ posicao: form.posicao === p ? '' : p })} style={{ padding: '10px 16px', borderRadius: 999, fontSize: 14, fontWeight: form.posicao === p ? 700 : 400, border: `1px solid ${form.posicao === p ? 'var(--accent)' : 'rgba(243,237,227,.2)'}`, background: form.posicao === p ? 'rgba(232,168,124,.12)' : 'transparent', color: form.posicao === p ? 'var(--accent)' : 'var(--sand)' }}>{p}</button>
+                  ))}
+                </div>
+                <Hint>Aparece na página do imóvel. Toque de novo para desmarcar.</Hint>
+              </Field>
               <Field label="Ano de construção">
                 <input value={form.ano} onChange={e => set({ ano: e.target.value.replace(/\D/g, '').slice(0, 4) })} placeholder="Ex.: 2019" inputMode="numeric" style={inp} />
                 <Hint>Opcional, mas conta como anúncio completo no portal.</Hint>

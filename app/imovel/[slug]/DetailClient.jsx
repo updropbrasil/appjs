@@ -85,7 +85,7 @@ export default function DetailClient({ im, precoFmt, parecidos = [], whats }) {
 
   const feats = [
     ['Quartos', im.quartos], ['Banheiros', im.banheiros], ['Vagas', im.vagas],
-    ['Área', im.area_m2 ? `${im.area_m2} m²` : null], ['Andar', im.andar], ['Tipo', im.categoria], ['Mobília', MOBILIA_LABELS[im.mobilia]],
+    ['Área', im.area_m2 ? `${im.area_m2} m²` : null], ['Andar', im.andar], ['Posição do sol', im.posicao_solar], ['Tipo', im.categoria], ['Mobília', MOBILIA_LABELS[im.mobilia]],
     ['Condomínio', taxa(im.condominio_tipo, im.condominio_cents)], ['IPTU', taxa(im.iptu_tipo, im.iptu_cents)]
   ].filter(([, v]) => v);
 
@@ -128,11 +128,6 @@ export default function DetailClient({ im, precoFmt, parecidos = [], whats }) {
             </div>
             {!cur.video && (
               <button onClick={() => setFull(true)} style={{ position: 'absolute', top: 12, right: 12, display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(31,24,18,.75)', color: '#F3EDE3', border: 0, borderRadius: 8, padding: '8px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', zIndex: 6 }}>⤢ Tela cheia</button>
-            )}
-            {cur.video && fotos.length > 0 && (
-              <button onClick={() => go(1)} style={{ position: 'absolute', left: 12, top: 12, zIndex: 6, display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(31,24,18,.78)', color: '#F3EDE3', border: '1px solid rgba(243,237,227,.18)', borderRadius: 999, padding: '7px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-                Deslize para ver {fotos.length} {fotos.length === 1 ? 'foto' : 'fotos'} →
-              </button>
             )}
             {idx > 0 && <button onClick={() => go(idx - 1)} style={navBtn('left')}>‹</button>}
             {idx < slides.length - 1 && <button onClick={() => go(idx + 1)} style={navBtn('right')}>›</button>}

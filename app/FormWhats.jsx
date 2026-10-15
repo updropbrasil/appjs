@@ -19,6 +19,20 @@ function utmDaUrl() {
   } catch (e) { return {}; }
 }
 
+function idEvento() {
+  try { if (window.crypto?.randomUUID) return window.crypto.randomUUID(); } catch (e) {}
+  return `ev-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+// fbclid que a Meta põe no link do anúncio; guardado na sessão porque a pessoa navega antes de preencher
+function fbclidDaUrl() {
+  try {
+    const v = new URLSearchParams(window.location.search).get('fbclid');
+    if (v) { try { sessionStorage.setItem('jd_fbclid', v); } catch (e) {} return v; }
+    return sessionStorage.getItem('jd_fbclid') || null;
+  } catch (e) { return null; }
+}
+
 // (83) 99999-9999 enquanto digita; com + no início não mexe (número de fora do Brasil)
 function mascara(v) {
   if (/^\s*\+/.test(v)) return v.replace(/[^\d+\s()-]/g, '').slice(0, 20);
@@ -68,6 +82,8 @@ export default function FormWhats({ aberto, onFechar, im, wa }) {
     if (!nomeOk) { setErro('Digite seu nome.'); return; }
     if (!telOk) { setErro('Confira o WhatsApp com DDD. Ex.: (83) 99999-9999'); return; }
     setEnviando(true); setErro('');
+    // mesmo id no Pixel (navegador) e na API de Conversões (servidor): a Meta conta o Contact uma vez só
+    const eventId = idEvento();
     try {
       const r = await fetch('/api/leads/site', {
         method: 'POST',
@@ -76,12 +92,13 @@ export default function FormWhats({ aberto, onFechar, im, wa }) {
           nome: nome.trim(), telefone: tel.trim(), codigo: im?.codigo || null,
           pagina: typeof window !== 'undefined' ? window.location.pathname : '',
           utm: utmDaUrl(), hp, ms: Date.now() - abriuEm.current,
+          event_id: eventId, fbclid: fbclidDaUrl(),
         }),
       });
       const j = await r.json().catch(() => ({}));
       if (!r.ok || !j.ok) throw new Error(j.erro || 'Não consegui enviar agora. Tente de novo.');
       try { localStorage.setItem(LEMBRAR, JSON.stringify({ nome: nome.trim(), tel: tel.trim() })); } catch (e2) {}
-      trackWhatsApp(im || {});
+      trackWhatsApp(im || {}, eventId);
       setOk(true);
     } catch (e2) {
       setErro(e2.message || 'Não consegui enviar agora. Tente de novo.');

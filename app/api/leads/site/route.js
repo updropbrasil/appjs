@@ -2,8 +2,9 @@
 // Segue o MESMO caminho dos leads de portal: grava em `leads` e chama o n8n
 // (confere se o número tem WhatsApp, avisa o Vitor e o SDR manda a primeira mensagem).
 import { createClient } from '@supabase/supabase-js';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../../../../lib/config';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, SITE_URL } from '../../../../lib/config';
 import { chamarN8n } from '../zap/route';
+import { enviarEventoCapi, capiConfigurada } from '../../../../lib/capi.server';
 
 export const dynamic = 'force-dynamic';
 
@@ -95,6 +96,27 @@ export async function POST(req) {
   // Para a pessoa, deu certo se o n8n recebeu OU se o lead ficou gravado (dá para reenviar pelo painel)
   if (envio.status !== 'enviado' && error) {
     return Response.json({ ok: false, erro: 'Não consegui enviar agora. Tente de novo ou chame no WhatsApp.' }, { status: 502 });
+  }
+
+  // Evento "Contact" pelo servidor (API de Conversões). O navegador manda o mesmo evento com o mesmo
+  // event_id; a Meta junta os dois. Se falhar, só registra no log: o lead já está salvo.
+  if (capiConfigurada() && !suspeito) {
+    try {
+      const { data: cfg } = await supabase.from('site_config').select('value').eq('key', 'meta_pixel_id').maybeSingle();
+      const pixelId = (cfg?.value || '').trim();
+      const eventId = /^[\w-]{8,64}$/.test(String(b?.event_id || '')) ? String(b.event_id) : null;
+      const pagina = /^\/[\w\-./]*$/.test(String(b?.pagina || '')) ? String(b.pagina) : '/';
+      const capi = await enviarEventoCapi({
+        pixelId, evento: 'Contact', eventId, nome, telefone: internacional ? telefone : `55${dig}`,
+        ip, userAgent: req.headers.get('user-agent') || '', cookies: req.headers.get('cookie') || '',
+        fbclid: typeof b?.fbclid === 'string' ? b.fbclid.slice(0, 200) : null,
+        url: `${SITE_URL}${pagina}`,
+        custom: { content_type: 'home_listing', ...(codigo ? { content_ids: [codigo] } : {}), ...(imovel?.preco_cents ? { value: Math.round(imovel.preco_cents / 100), currency: 'BRL' } : {}) },
+      });
+      if (!capi.ok) console.error('[capi] Contact não enviado:', capi.erro);
+    } catch (e) {
+      console.error('[capi] erro:', e.message);
+    }
   }
   return Response.json({ ok: true });
 }

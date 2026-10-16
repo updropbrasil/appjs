@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { ytId, ytThumb, ytEmbed, MOBILIA_LABELS, whatsappLink, formatPreco } from '../../../lib/format';
-import { trackViewImovel } from '../../../lib/track';
+import { trackViewImovel, trackEvento } from '../../../lib/track';
 import { ultimaBusca } from '../../../lib/busca';
 import CardImovel from '../../CardImovel';
 import IconeWhats from '../../IconeWhats';
@@ -23,7 +23,7 @@ export default function DetailClient({ im, precoFmt, parecidos = [], whats }) {
   const [isMobile, setIsMobile] = useState(false);
   // Botões de WhatsApp abrem o mini formulário (nome + WhatsApp); o SDR chama a pessoa
   const [formWa, setFormWa] = useState(false);
-  const abrirForm = (e) => { e.preventDefault(); setFormWa(true); };
+  const abrirForm = (e) => { e.preventDefault(); trackEvento('tocou_whats_cta'); trackEvento('abriu_form'); setFormWa(true); };
   useEffect(() => {
     setOrigin(window.location.origin);
     setVoltar('/' + ultimaBusca() + '#lista');
@@ -74,6 +74,7 @@ export default function DetailClient({ im, precoFmt, parecidos = [], whats }) {
     const t = Math.max(0, Math.min(slides.length - 1, k + (temVideo ? 1 : 0)));
     setIdx(t);
     const el = trackRef.current; if (el) el.scrollLeft = el.clientWidth * t;
+    trackEvento('abriu_fotos');
     setFull(true);
   };
   const wa = whatsappLink(`Olá! Tenho interesse no imóvel ${im.codigo ? `(cód. ${im.codigo}) ` : ''}"${im.titulo}" no ${im.bairro}. Pode me passar mais informações?`, whats);
@@ -104,7 +105,7 @@ export default function DetailClient({ im, precoFmt, parecidos = [], whats }) {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 48, alignItems: 'flex-start' }}>
           {/* MÍDIA */}
           <div style={{ width: 360, maxWidth: '100%', flex: '1 1 320px' }}>
-          <div style={{ width: '100%', position: 'relative', aspectRatio: '9/16', maxHeight: 640, borderRadius: 18, overflow: 'hidden', background: 'linear-gradient(150deg,#6B5A44,#463928)', boxShadow: '0 20px 60px rgba(0,0,0,.4)' }}>
+          <div style={{ width: '100%', position: 'relative', aspectRatio: '9/16', maxHeight: isMobile ? 'min(640px, 68vh)' : 640, borderRadius: 18, overflow: 'hidden', background: 'linear-gradient(150deg,#6B5A44,#463928)', boxShadow: '0 20px 60px rgba(0,0,0,.4)' }}>
             <div ref={trackRef} onScroll={onTrackScroll} className="no-scrollbar"
               style={{ position: 'absolute', inset: 0, display: 'flex', overflowX: 'auto', overflowY: 'hidden', scrollSnapType: 'x mandatory', WebkitOverflowScrolling: 'touch' }}>
               {slides.map((s, k) => (
@@ -126,6 +127,13 @@ export default function DetailClient({ im, precoFmt, parecidos = [], whats }) {
                 </div>
               ))}
             </div>
+            {/* SELO: avisa que tem fotos além do vídeo e abre a galeria em tela cheia */}
+            {cur.video && fotos.length > 0 && (
+              <button onClick={() => abrirFoto(0)} aria-label={`Ver as ${fotos.length} fotos`}
+                style={{ position: 'absolute', right: 12, bottom: 92, display: 'flex', alignItems: 'center', gap: 7, background: 'rgba(31,24,18,.82)', color: '#F3EDE3', border: '1px solid rgba(243,237,227,.25)', borderRadius: 999, padding: '9px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer', zIndex: 6, backdropFilter: 'blur(6px)' }}>
+                <span aria-hidden="true" style={{ fontSize: 15 }}>📷</span>{fotos.length} fotos <span aria-hidden="true" style={{ opacity: .75 }}>›</span>
+              </button>
+            )}
             {!cur.video && (
               <button onClick={() => setFull(true)} style={{ position: 'absolute', top: 12, right: 12, display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(31,24,18,.75)', color: '#F3EDE3', border: 0, borderRadius: 8, padding: '8px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', zIndex: 6 }}>⤢ Tela cheia</button>
             )}

@@ -177,15 +177,17 @@ export default function GestaoClient({ initialImoveis, initialParceiros, initial
     try {
       // 1) fotos no Storage do Supabase
       const { data: fotos } = await supabase.from('imovel_fotos').select('path, url').eq('imovel_id', im.id);
-      const paths = (fotos || []).map(f => f.path).filter(Boolean);
+      // imóvel da parceria (veio do outro site): fotos e vídeo são do site de origem — nunca apagar os arquivos
+      const daParceria = !!im.origem_id;
+      const paths = (fotos || []).map(f => f.path).filter(p => p && !String(p).startsWith('parceria:'));
       if (paths.length) await supabase.storage.from('imoveis-fotos').remove(paths);
       // 1b) fotos que estão no Cloudflare R2
-      for (const f of (fotos || [])) { if (f.url && !f.path) await deleteFromR2(f.url); }
+      if (!daParceria) for (const f of (fotos || [])) { if (f.url && !f.path) await deleteFromR2(f.url); }
       // 2) vídeo(s) do imóvel no Storage do Supabase (se houver)
       const { data: vids } = await supabase.storage.from('imoveis-videos').list(String(im.id));
       if (vids && vids.length) await supabase.storage.from('imoveis-videos').remove(vids.map(v => `${im.id}/${v.name}`));
       // 3) vídeo no Cloudflare R2 (se a URL for do R2)
-      if (im.video_file_url) await deleteFromR2(im.video_file_url);
+      if (im.video_file_url && !daParceria) await deleteFromR2(im.video_file_url);
       // 4) registro no banco (cascade apaga as linhas de imovel_fotos)
       await supabase.from('imoveis').delete().eq('id', im.id);
       setImoveis(l => l.filter(x => x.id !== im.id));

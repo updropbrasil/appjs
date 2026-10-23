@@ -18,6 +18,9 @@ const POSICOES = ['Nascente', 'Nascente norte', 'Nascente sul', 'Poente', 'Poent
 const MOBILIAS = [['mobiliado', 'Mobiliado'], ['semi', 'Semimobiliado'], ['sem', 'Sem mobília'], ['planejados', 'Com planejados']];
 const STEPS = ['Tipo', 'Localização', 'Características', 'Valores', 'Vídeo e fotos', 'Revisão'];
 
+// imóveis da parceria: os que vieram do outro site têm origem_site diferente deste
+const ORIGEM_PROPRIA = 'jason';
+
 export default function CadastroClient({ parceiros: parceirosIniciais, imovel, fotosIniciais }) {
   const router = useRouter();
   const supabase = createClient();
@@ -93,7 +96,7 @@ export default function CadastroClient({ parceiros: parceirosIniciais, imovel, f
     numero: imovel.numero || '', complemento: imovel.complemento || '', ano: imovel.ano_construcao || '',
     contato_interno: imovel.contato_interno || '',
     condominio_inclui: imovel.condominio_inclui || '', agua_tipo: imovel.agua_tipo || 'nao_informado', gas_tipo: imovel.gas_tipo || 'nao_informado',
-    captacao: imovel.captacao || 'propria', parceiro_nome: imovel.parceiro_nome || '', parceiro_whatsapp: imovel.parceiro_whatsapp || '',
+    captacao: imovel.captacao || 'propria', parceiro_nome: imovel.parceiro_nome || '', parceiro_whatsapp: imovel.parceiro_whatsapp || '', compartilhar_parceria: !!imovel.compartilhar_parceria,
     features: Array.isArray(imovel.features) ? imovel.features : []
   } : {
     finalidade: 'aluguel', categoria: 'Apartamento', titulo: '', bairro: '', endereco: '', referencia: '',
@@ -101,7 +104,7 @@ export default function CadastroClient({ parceiros: parceirosIniciais, imovel, f
     condominio_tipo: 'valor', iptu_tipo: 'valor',
     video: '', videoUrl: '', videoMode: 'link', descricao: '', parceiro_id: '', parceiro_pct: '', codigo: '', cep: '',
     numero: '', complemento: '', ano: '', contato_interno: '', features: [],
-    condominio_inclui: '', agua_tipo: 'nao_informado', gas_tipo: 'nao_informado', captacao: 'propria', parceiro_nome: '', parceiro_whatsapp: ''
+    condominio_inclui: '', agua_tipo: 'nao_informado', gas_tipo: 'nao_informado', captacao: 'propria', parceiro_nome: '', parceiro_whatsapp: '', compartilhar_parceria: false
   });
 
   const set = (patch) => setForm(f => ({ ...f, ...patch }));
@@ -237,6 +240,7 @@ export default function CadastroClient({ parceiros: parceirosIniciais, imovel, f
         condominio_inclui: (form.condominio_inclui || '').trim() || null,
         agua_tipo: form.agua_tipo || 'nao_informado', gas_tipo: form.gas_tipo || 'nao_informado',
         captacao: form.captacao || 'propria',
+        compartilhar_parceria: !!form.compartilhar_parceria,
         parceiro_nome: form.captacao === 'parceiro' ? ((form.parceiro_nome || '').trim() || null) : null,
         parceiro_whatsapp: form.captacao === 'parceiro' ? ((form.parceiro_whatsapp || '').replace(/\D/g, '') || null) : null,
         status: 'ativo'
@@ -370,6 +374,16 @@ export default function CadastroClient({ parceiros: parceirosIniciais, imovel, f
               </div>
               <Label>Tipo de imóvel</Label>
               <Chips opts={CATEGORIAS.map(c => [c, c])} value={form.categoria} onPick={c => set({ categoria: c })} />
+              {imovel?.origem_site && imovel.origem_site !== ORIGEM_PROPRIA ? (
+                <div style={{ padding: 14, borderRadius: 12, border: '1px solid rgba(201,162,126,.45)', background: 'rgba(201,162,126,.08)', fontSize: 13.5, lineHeight: 1.5 }}>
+                  <strong>Imóvel da parceria</strong> — vem do site da Jassiara Vasconcelos e é atualizado sozinho a cada 5 minutos. Mudanças feitas aqui são substituídas; para alterar, edite no site de origem.
+                </div>
+              ) : (
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: 14, borderRadius: 12, border: '1px solid var(--line)', fontSize: 14, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={!!form.compartilhar_parceria} onChange={e => set({ compartilhar_parceria: e.target.checked })} style={{ width: 20, height: 20, marginTop: 1 }} />
+                  <span>Aparecer também no site da parceira <strong>Jassiara Vasconcelos</strong><br /><span style={{ fontSize: 12, color: 'var(--muted)' }}>Vai para o site dela com o código dela (JDV → JSV, JDA → JSA), mesmas fotos e vídeo. Desmarcou ou pausou aqui, sai de lá. Não vai para os portais dela.</span></span>
+                </label>
+              )}
               <Hint>Essa escolha já define os filtros em que o anúncio aparece no site.</Hint>
             </>
           )}

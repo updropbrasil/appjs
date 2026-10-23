@@ -22,18 +22,39 @@ export default function GestaoClient({ initialImoveis, initialParceiros, initial
   const [linkP, setLinkP] = useState(null); // {id, status: 'gerando'|'copiado'|'erro', url?, erro?}
 
   // Link de material para corretor parceiro: página sem logo com fotos, vídeo e descrição para baixar.
+  // iPhone/Safari só deixa copiar se a cópia começar no próprio toque: por isso o link vai para a
+  // área de transferência como "promessa" (ClipboardItem) enquanto o servidor gera o link.
   async function linkParceiro(im) {
     setLinkP({ id: im.id, status: 'gerando' });
+    const pedir = fetch('/api/admin/link-parceiro?id=' + im.id).then(x => x.json())
+      .then(r => { if (!r.ok) throw new Error(r.erro || 'falha'); return r.url; });
+    let copiado = false;
     try {
-      const r = await fetch('/api/admin/link-parceiro?id=' + im.id).then(x => x.json());
-      if (!r.ok) throw new Error(r.erro || 'falha');
-      let copiado = false;
-      try { await navigator.clipboard.writeText(r.url); copiado = true; } catch (e) { /* sem permissão: mostra o link para copiar à mão */ }
-      setLinkP({ id: im.id, status: 'copiado', url: r.url, copiado });
-      setTimeout(() => setLinkP(l => (l && l.id === im.id && l.copiado ? null : l)), 4000);
+      if (window.ClipboardItem && navigator.clipboard?.write) {
+        await navigator.clipboard.write([new ClipboardItem({ 'text/plain': pedir.then(u => new Blob([u], { type: 'text/plain' })) })]);
+        copiado = true;
+      }
+    } catch (e) { /* tenta de novo abaixo */ }
+    try {
+      const url = await pedir;
+      if (!copiado) { try { await navigator.clipboard.writeText(url); copiado = true; } catch (e) { /* fica o botão Copiar */ } }
+      setLinkP({ id: im.id, status: 'pronto', url, copiado, codigo: im.codigo || '' });
     } catch (e) {
       setLinkP({ id: im.id, status: 'erro', erro: String(e.message || e) });
     }
+  }
+
+  // botão "Copiar link" do quadro (o link já existe, então a cópia acontece no mesmo toque)
+  async function copiarLinkP() {
+    const url = linkP?.url; if (!url) return;
+    let ok = false;
+    try { await navigator.clipboard.writeText(url); ok = true; } catch (e) {
+      try {
+        const t = document.createElement('textarea'); t.value = url; t.setAttribute('readonly', ''); t.style.position = 'fixed'; t.style.opacity = '0';
+        document.body.appendChild(t); t.select(); t.setSelectionRange(0, url.length); ok = document.execCommand('copy'); document.body.removeChild(t);
+      } catch (e2) { ok = false; }
+    }
+    setLinkP(l => (l ? { ...l, copiado: ok, falhouCopiar: !ok, copiadoAgora: ok ? Date.now() : 0 } : l));
   }
 
   const [otimV, setOtimV] = useState(null); // {total, feitas, erros, atual, ganhoMB, fim}
@@ -363,19 +384,34 @@ export default function GestaoClient({ initialImoveis, initialParceiros, initial
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     <Link href={`/admin/novo?id=${im.id}`} style={{ padding: '9px 14px', borderRadius: 8, background: 'rgba(232,168,124,.12)', border: '1px solid rgba(232,168,124,.35)', color: 'var(--accent)', fontSize: 12.5, fontWeight: 700 }}>Editar</Link>
                     <button onClick={() => linkParceiro(im)} disabled={linkP?.id === im.id && linkP.status === 'gerando'} title="Página sem logo com fotos, vídeo e descrição para o corretor parceiro baixar"
-                      style={{ padding: '9px 14px', borderRadius: 8, border: '1px solid rgba(168,192,143,.35)', background: linkP?.id === im.id && linkP.status === 'copiado' ? 'rgba(168,192,143,.18)' : 'transparent', color: 'var(--green)', fontSize: 12.5, fontWeight: 600 }}>
-                      {linkP?.id === im.id ? (linkP.status === 'gerando' ? 'Gerando…' : linkP.status === 'copiado' ? (linkP.copiado ? '✓ Link copiado' : 'Link gerado') : 'Erro') : 'Link p/ parceiro'}
+                      style={{ padding: '9px 14px', borderRadius: 8, border: '1px solid rgba(168,192,143,.35)', background: linkP?.id === im.id && linkP.status === 'pronto' ? 'rgba(168,192,143,.18)' : 'transparent', color: 'var(--green)', fontSize: 12.5, fontWeight: 600 }}>
+                      {linkP?.id === im.id ? (linkP.status === 'gerando' ? 'Gerando…' : linkP.status === 'pronto' ? (linkP.copiado ? '✓ Link copiado' : 'Link pronto') : 'Erro') : 'Link p/ parceiro'}
                     </button>
                     <button onClick={() => togglePausa(im)} style={{ padding: '9px 14px', borderRadius: 8, border: '1px solid rgba(243,237,227,.18)', background: 'transparent', color: 'var(--sand)', fontSize: 12.5, fontWeight: 600 }}>{pausado ? 'Reativar' : 'Pausar'}</button>
                     <button onClick={() => excluir(im)} disabled={excluindo === im.id} style={{ padding: '9px 14px', borderRadius: 8, border: '1px solid rgba(200,90,70,.3)', background: confirm === im.id ? 'rgba(200,90,70,.15)' : 'transparent', color: '#c88a7a', fontSize: 12.5, fontWeight: 600 }}>{excluindo === im.id ? 'Excluindo…' : confirm === im.id ? 'Confirmar exclusão?' : 'Excluir'}</button>
                   </div>
-                  {linkP?.id === im.id && linkP.status === 'copiado' && (
-                    <div style={{ fontSize: 12, color: 'var(--taupe)', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                      <input readOnly value={linkP.url} onFocus={e => e.target.select()} style={{ flex: '1 1 260px', minWidth: 0, padding: '7px 10px', borderRadius: 7, border: '1px solid var(--line)', background: 'var(--bg)', color: 'var(--cream)', fontSize: 12 }} />
-                      <a href={linkP.url} target="_blank" rel="noopener" style={{ fontSize: 12, fontWeight: 700 }}>Abrir</a>
-                      <span>{linkP.copiado ? 'Copiado. É só colar no WhatsApp do parceiro.' : 'Copie o link acima e mande ao parceiro.'}</span>
-                    </div>
-                  )}
+                  {linkP?.id === im.id && linkP.status === 'pronto' && (() => {
+                    const msg = `Material do imóvel${linkP.codigo ? ' ' + linkP.codigo : ''} (fotos, vídeo e descrição para baixar): ${linkP.url}`;
+                    const bt = { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '12px 14px', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer', textDecoration: 'none', flex: '1 1 150px' };
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 14, borderRadius: 12, border: '1px solid rgba(168,192,143,.35)', background: 'rgba(168,192,143,.07)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                          <strong style={{ fontSize: 13, color: 'var(--green)' }}>{linkP.copiado ? '✓ Link copiado — é só colar no WhatsApp do parceiro' : 'Link do parceiro pronto'}</strong>
+                          <button onClick={() => setLinkP(null)} aria-label="Fechar" style={{ background: 'none', border: 0, color: 'var(--taupe)', fontSize: 22, lineHeight: 1, cursor: 'pointer', padding: '0 4px' }}>×</button>
+                        </div>
+                        <div onClick={copiarLinkP} title="Toque para copiar" style={{ fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 12.5, wordBreak: 'break-all', padding: '10px 12px', borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--line)', color: 'var(--cream)', userSelect: 'all', WebkitUserSelect: 'all', cursor: 'copy' }}>{linkP.url}</div>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                          <button onClick={copiarLinkP} style={{ ...bt, border: 0, background: 'var(--green)', color: '#1d2016' }}>{linkP.copiadoAgora ? '✓ Copiado' : 'Copiar link'}</button>
+                          <a href={'https://wa.me/?text=' + encodeURIComponent(msg)} target="_blank" rel="noopener" style={{ ...bt, background: 'var(--wa, #25D366)', color: '#0B2915' }}>Mandar no WhatsApp</a>
+                          {typeof navigator !== 'undefined' && navigator.share && (
+                            <button onClick={() => navigator.share({ title: 'Material do imóvel', text: msg }).catch(() => {})} style={{ ...bt, border: '1px solid var(--line)', background: 'transparent', color: 'var(--cream)' }}>Compartilhar…</button>
+                          )}
+                          <a href={linkP.url} target="_blank" rel="noopener" style={{ ...bt, flex: '0 1 auto', border: '1px solid var(--line)', color: 'var(--sand)', fontWeight: 600 }}>Abrir</a>
+                        </div>
+                        {linkP.falhouCopiar && <div style={{ fontSize: 12, color: 'var(--taupe)' }}>O navegador não deixou copiar sozinho: segure o dedo no link acima e escolha Copiar, ou use “Mandar no WhatsApp”.</div>}
+                      </div>
+                    );
+                  })()}
                   {linkP?.id === im.id && linkP.status === 'erro' && (
                     <div style={{ fontSize: 12, color: '#c88a7a' }}>Não consegui gerar o link: {linkP.erro}</div>
                   )}

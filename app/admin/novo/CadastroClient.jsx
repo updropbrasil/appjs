@@ -376,7 +376,7 @@ export default function CadastroClient({ parceiros: parceirosIniciais, imovel, f
               <Chips opts={CATEGORIAS.map(c => [c, c])} value={form.categoria} onPick={c => set({ categoria: c })} />
               {imovel?.origem_site && imovel.origem_site !== ORIGEM_PROPRIA ? (
                 <div style={{ padding: 14, borderRadius: 12, border: '1px solid rgba(201,162,126,.45)', background: 'rgba(201,162,126,.08)', fontSize: 13.5, lineHeight: 1.5 }}>
-                  <strong>Imóvel da parceria</strong> — vem do site da Jassiara Vasconcelos e é atualizado sozinho a cada 5 minutos. Mudanças feitas aqui são substituídas; para alterar, edite no site de origem.
+                  <strong>Imóvel da parceria</strong> — vem do site da Jassiara Vasconcelos e é atualizado sozinho a cada 5 minutos. Textos, preço e fotos são substituídos pelos do site de origem; pausar aqui vale só para este site e é respeitado.
                 </div>
               ) : (
                 <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: 14, borderRadius: 12, border: '1px solid var(--line)', fontSize: 14, cursor: 'pointer' }}>

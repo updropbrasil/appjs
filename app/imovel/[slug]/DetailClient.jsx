@@ -33,6 +33,16 @@ export default function DetailClient({ im, precoFmt, parecidos = [], whats }) {
     return () => mq.removeEventListener('change', on);
   }, []);
   useEffect(() => { trackViewImovel(im); }, [im?.id]);
+  // O vídeo (vários MB) só começa a baixar depois que a página terminou de carregar:
+  // a capa aparece na hora e o vídeo não disputa a internet do celular com a página.
+  const [videoLiberado, setVideoLiberado] = useState(false);
+  useEffect(() => {
+    let t;
+    const liberar = () => { t = setTimeout(() => setVideoLiberado(true), 200); };
+    if (document.readyState === 'complete') liberar();
+    else window.addEventListener('load', liberar, { once: true });
+    return () => { clearTimeout(t); window.removeEventListener('load', liberar); };
+  }, []);
   const ehAluguel = im.finalidade === 'aluguel';
   // capa do vídeo: aparece na hora enquanto o vídeo carrega
   const poster = (fotos[0] && (fotos[0].url || fotos[0])) || im.capa_url || undefined;
@@ -114,11 +124,11 @@ export default function DetailClient({ im, precoFmt, parecidos = [], whats }) {
                     vid ? (
                       <iframe src={ytEmbed(vid, { controls: 1, origin })} referrerPolicy="strict-origin-when-cross-origin" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }} allow="autoplay; encrypted-media" allowFullScreen title={im.titulo} />
                     ) : (
-                      <video src={im.video_file_url} poster={poster} controls autoPlay muted loop playsInline style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <video src={videoLiberado ? im.video_file_url : undefined} poster={poster} controls autoPlay muted loop playsInline style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
                     )
                   ) : (
                     <>
-                      {s.thumb && <img src={s.thumb} alt="" aria-hidden="true" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(6px)', transform: 'scale(1.04)' }} />}
+                      {s.thumb && <img src={s.thumb} alt="" aria-hidden="true" loading={k <= 2 ? 'eager' : 'lazy'} decoding="async" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(6px)', transform: 'scale(1.04)' }} />}
                       <img src={s.bg} alt={`${im.titulo} — foto ${k}`} onClick={() => setFull(true)}
                         loading={k <= 2 ? 'eager' : 'lazy'} fetchPriority={k <= 1 ? 'high' : 'auto'} decoding="async"
                         style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', cursor: 'zoom-in' }} />

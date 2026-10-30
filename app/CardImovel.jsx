@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { MOBILIA_LABELS, ytId, ytThumb, ytEmbed, formatPreco } from '../lib/format';
+import { fotoReduzida } from '../lib/midia';
 
 // Cartão de imóvel usado na home e nos "Imóveis parecidos".
 // compacto = celular em 2 colunas (texto menor, foto 3:4).
@@ -23,7 +24,7 @@ export default function CardImovel({ im, compacto = false, autoVideo = true, umP
   const nativo = !vid && im.video_file_url;
   const f0 = (im.imovel_fotos || []).slice().sort((a, b) => (a.ordem || 0) - (b.ordem || 0))[0];
   const foto0 = f0?.thumb_url || f0?.url;
-  const capa = vid ? ytThumb(vid) : (im.capa_url || foto0 || '');
+  const capa = vid ? ytThumb(vid) : fotoReduzida(im.capa_url || foto0 || '');
   const ref = useRef(null);
   const [visivel, setVisivel] = useState(false);
   const [hover, setHover] = useState(false);

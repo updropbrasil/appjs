@@ -129,7 +129,7 @@ export default function PortalClient({ imoveis, heroVideo, heroVideoFile, whats 
       <header style={{ position: 'sticky', top: 0, zIndex: 40, background: 'rgba(31,24,18,.92)', backdropFilter: 'blur(10px)', borderBottom: '1px solid var(--line)' }}>
         <div className="container cab-home" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center' }}>
-            <img src="/logo-jason-dias.jpg" alt="Jason Dias Imóveis" style={{ height: isMobile ? 30 : 36, width: 'auto', mixBlendMode: 'screen' }} />
+            <img src="/logo-jason-dias.jpg" alt="Jason Dias Imóveis" width={1170} height={263} className="logo-cab" style={{ width: 'auto', mixBlendMode: 'screen' }} />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 12 : 28 }}>
             {/* escondido no celular pelo CSS (classe so-pc), para já abrir certo antes do JavaScript carregar */}
@@ -150,7 +150,7 @@ export default function PortalClient({ imoveis, heroVideo, heroVideoFile, whats 
       </header>
 
       {/* HERO */}
-      <section style={{ position: 'relative', minHeight: isMobile ? 'auto' : 'min(94vh, 800px)', background: heroYt ? `#2A2117 url("https://i.ytimg.com/vi/${heroYt}/hqdefault.jpg") center/cover` : 'linear-gradient(200deg,#4A3B2A,#2A2117 60%,#1F1812)', overflow: 'hidden', display: 'flex' }}>
+      <section className="hero-home" style={{ position: 'relative', background: heroYt ? `#2A2117 url("https://i.ytimg.com/vi/${heroYt}/hqdefault.jpg") center/cover` : 'linear-gradient(200deg,#4A3B2A,#2A2117 60%,#1F1812)', overflow: 'hidden', display: 'flex' }}>
         {heroVideoFile && (
           <video src={heroVideoFile} autoPlay muted loop playsInline preload="auto"
             style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', minWidth: '100%', minHeight: '100%', objectFit: 'cover', border: 0 }} />
@@ -167,8 +167,8 @@ export default function PortalClient({ imoveis, heroVideo, heroVideoFile, whats 
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0, zIndex: 3 }} allow="autoplay; encrypted-media" allowFullScreen title="Tour em destaque" />
         )}
         {!heroPlaying && (
-          <div className="container" style={{ position: 'relative', zIndex: 2, alignSelf: 'flex-end', width: '100%', padding: isMobile ? '0 20px 40px' : '0 56px 56px' }}>
-            <div style={{ maxWidth: 620, paddingTop: isMobile ? 70 : 90 }}>
+          <div className="container hero-conteudo" style={{ position: 'relative', zIndex: 2, alignSelf: 'flex-end', width: '100%' }}>
+            <div className="hero-texto" style={{ maxWidth: 620 }}>
               <div style={{ display: 'inline-flex', gap: 8, fontSize: 10.5, letterSpacing: '.2em', color: 'var(--accent)', border: '1px solid rgba(232,168,124,.4)', padding: '6px 12px', borderRadius: 999, marginBottom: 18 }}>JOÃO PESSOA · PB</div>
               <h1 style={{ fontSize: 'clamp(26px, 4vw, 48px)', lineHeight: 1.14, color: 'var(--cream-2)', margin: 0, textShadow: '0 2px 24px rgba(0,0,0,.45)' }}>Morar bem em João Pessoa começa com um bom tour</h1>
               <p style={{ fontSize: 'clamp(14px, 1.6vw, 16px)', color: 'var(--cream)', marginTop: 14, maxWidth: 460, lineHeight: 1.55, textShadow: '0 1px 12px rgba(0,0,0,.5)' }}>Todos os nossos imóveis têm tour guiado em vídeo. Conheça por dentro antes de agendar a visita.</p>
@@ -180,8 +180,8 @@ export default function PortalClient({ imoveis, heroVideo, heroVideoFile, whats 
             </div>
 
             {/* BUSCA — sempre visível sobre o vídeo */}
-            <div style={{ marginTop: 26, background: 'rgba(31,24,18,.78)', backdropFilter: 'blur(10px)', border: '1px solid rgba(243,237,227,.14)', borderRadius: 16, padding: isMobile ? 14 : '18px 20px', maxWidth: 940, display: 'flex', flexDirection: 'column', gap: 12, boxShadow: '0 18px 50px rgba(0,0,0,.35)' }}>
-              <div style={{ display: 'flex', gap: isMobile ? 10 : 14, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            <div className="busca-box" style={{ marginTop: 26, background: 'rgba(31,24,18,.78)', backdropFilter: 'blur(10px)', border: '1px solid rgba(243,237,227,.14)', borderRadius: 16, maxWidth: 940, display: 'flex', flexDirection: 'column', gap: 12, boxShadow: '0 18px 50px rgba(0,0,0,.35)' }}>
+              <div className="busca-linha" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end' }}>
                 <div style={{ flex: '1 1 190px', minWidth: 0 }}>
                   <div style={buscaLabel}>QUERO</div>
                   <div style={{ display: 'flex', background: 'var(--bg-2)', borderRadius: 11, padding: 3, border: '1px solid rgba(243,237,227,.12)' }}>
@@ -197,7 +197,7 @@ export default function PortalClient({ imoveis, heroVideo, heroVideoFile, whats 
                   <datalist id="jd-bairros">{bairros.map(b => <option key={b} value={b} />)}</datalist>
                 </div>
 
-                <div style={{ flex: isMobile ? '1 1 130px' : '1 1 200px', minWidth: 0 }}>
+                <div className="busca-tipo" style={{ minWidth: 0 }}>
                   <div style={buscaLabel}>TIPO DE IMÓVEL</div>
                   <select value={fTipo} onChange={e => setFTipo(e.target.value)} style={buscaField}>
                     <option value="todos">Todos os tipos</option>
@@ -205,7 +205,7 @@ export default function PortalClient({ imoveis, heroVideo, heroVideoFile, whats 
                   </select>
                 </div>
 
-                <div style={{ flex: isMobile ? '1 1 100px' : '1 1 120px', minWidth: 0 }}>
+                <div className="busca-quartos" style={{ minWidth: 0 }}>
                   <div style={buscaLabel}>QUARTOS</div>
                   <select value={fQuartos} onChange={e => setFQuartos(e.target.value)} style={buscaField}>
                     <option value="">Qualquer</option>
@@ -227,7 +227,7 @@ export default function PortalClient({ imoveis, heroVideo, heroVideoFile, whats 
                   </div>
                 </div>
 
-                <button onClick={() => goToList(filter)} style={{ flex: isMobile ? '1 1 100%' : '0 0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: 'var(--accent)', color: '#2A2117', border: 0, borderRadius: 11, padding: '15px 24px', fontSize: 14.5, fontWeight: 700, cursor: 'pointer' }}>
+                <button className="busca-btn" onClick={() => goToList(filter)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: 'var(--accent)', color: '#2A2117', border: 0, borderRadius: 11, padding: '15px 24px', fontSize: 14.5, fontWeight: 700, cursor: 'pointer' }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" /></svg>
                   Ver {lista.length} {lista.length === 1 ? 'imóvel' : 'imóveis'}
                 </button>
@@ -235,10 +235,10 @@ export default function PortalClient({ imoveis, heroVideo, heroVideoFile, whats 
 
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', fontSize: 12, color: 'var(--muted)' }}>
                 <span>Bairros:</span>
-                {bairros.slice(0, isMobile ? 4 : 7).map(b => {
+                {bairros.slice(0, 7).map((b, k) => {
                   const sel = semAcento(fBairro) === semAcento(b);
                   return (
-                    <button key={b} onClick={() => { setFBairro(sel ? '' : b); goToList(filter); }}
+                    <button key={b} className={k >= 4 ? 'so-pc' : undefined} onClick={() => { setFBairro(sel ? '' : b); goToList(filter); }}
                       style={{ padding: '5px 12px', borderRadius: 999, fontSize: 12, cursor: 'pointer', border: `1px solid ${sel ? 'var(--accent)' : 'rgba(243,237,227,.18)'}`, background: sel ? 'rgba(232,168,124,.14)' : 'transparent', color: sel ? 'var(--accent)' : 'var(--sand)' }}>{b}</button>
                   );
                 })}
@@ -250,7 +250,7 @@ export default function PortalClient({ imoveis, heroVideo, heroVideoFile, whats 
       </section>
 
       {/* LISTA */}
-      <section id="lista" className="container" style={{ padding: isMobile ? '28px 20px 40px' : '36px 56px 56px' }}>
+      <section id="lista" className="container lista-home">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', marginBottom: 22 }}>
           <h2 style={{ fontSize: 24, color: 'var(--cream-2)', margin: 0 }}>Imóveis disponíveis <span style={{ fontSize: 14, color: 'var(--muted)', fontFamily: 'Karla, system-ui, sans-serif' }}>({lista.length})</span></h2>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -314,8 +314,8 @@ export default function PortalClient({ imoveis, heroVideo, heroVideoFile, whats 
           </div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(auto-fill,minmax(210px,1fr))', gap: isMobile ? 12 : 20 }}>
-          {lista.map((im, i) => <CardImovel key={im.id} im={im} compacto={isMobile} autoVideo umPorVez={isMobile} origin={origin} priority={i < 4} onAbrir={() => lembrarRolagem(query)} />)}
+        <div className="grade-imoveis">
+          {lista.map((im) => <CardImovel key={im.id} im={im} compacto={isMobile} autoVideo umPorVez={isMobile} origin={origin} onAbrir={() => lembrarRolagem(query)} />)}
         </div>
         {lista.length === 0 && (
           <div style={{ textAlign: 'center', padding: 48, color: 'var(--muted)' }}>

@@ -48,7 +48,7 @@ export default function CardImovel({ im, compacto = false, autoVideo = true, umP
     <Link ref={ref} href={`/imovel/${im.slug}`} onClick={onAbrir}
       style={{ background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: compacto ? 12 : 16, overflow: 'hidden', display: 'block', minWidth: 0 }}
       onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
-      <div style={{ position: 'relative', aspectRatio: compacto ? '3/4' : '9/16', background: 'linear-gradient(150deg,#6B5A44,#463928)', overflow: 'hidden' }}>
+      <div className="card-midia" style={{ position: 'relative', background: 'linear-gradient(150deg,#6B5A44,#463928)', overflow: 'hidden' }}>
         {capa && (
           <img src={capa} alt={im.titulo || im.categoria} loading={priority ? 'eager' : 'lazy'} fetchPriority={priority ? 'high' : 'auto'} decoding="async"
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />

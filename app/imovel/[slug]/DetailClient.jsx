@@ -94,7 +94,7 @@ export default function DetailClient({ im, precoFmt, parecidos = [], whats }) {
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
       <header className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, paddingTop: 14, paddingBottom: 14, borderBottom: '1px solid var(--line)' }}>
         <Link href="/" style={{ display: 'flex', alignItems: 'center' }} aria-label="Jason Dias Imóveis">
-          <img src="/logo-jason-dias.jpg" alt="Jason Dias Imóveis" style={{ height: 34, width: 'auto', mixBlendMode: 'screen' }} />
+          <img src="/logo-jason-dias.jpg" alt="Jason Dias Imóveis" width={1170} height={263} style={{ height: 34, width: 'auto', mixBlendMode: 'screen' }} />
         </Link>
         <a href={wa} target="_blank" rel="noopener" onClick={abrirForm} style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'var(--wa)', color: 'var(--wa-texto)', padding: '10px 16px', borderRadius: 8, fontSize: 13, fontWeight: 800, whiteSpace: 'nowrap' }}><IconeWhats size={16} />WhatsApp</a>
       </header>
@@ -105,7 +105,7 @@ export default function DetailClient({ im, precoFmt, parecidos = [], whats }) {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 48, alignItems: 'flex-start' }}>
           {/* MÍDIA */}
           <div style={{ width: 360, maxWidth: '100%', flex: '1 1 320px' }}>
-          <div style={{ width: '100%', position: 'relative', aspectRatio: '9/16', maxHeight: isMobile ? 'min(640px, 68vh)' : 640, borderRadius: 18, overflow: 'hidden', background: 'linear-gradient(150deg,#6B5A44,#463928)', boxShadow: '0 20px 60px rgba(0,0,0,.4)' }}>
+          <div className="midia-imovel" style={{ width: '100%', position: 'relative', aspectRatio: '9/16', borderRadius: 18, overflow: 'hidden', background: 'linear-gradient(150deg,#6B5A44,#463928)', boxShadow: '0 20px 60px rgba(0,0,0,.4)' }}>
             <div ref={trackRef} onScroll={onTrackScroll} className="no-scrollbar"
               style={{ position: 'absolute', inset: 0, display: 'flex', overflowX: 'auto', overflowY: 'hidden', scrollSnapType: 'x mandatory', WebkitOverflowScrolling: 'touch' }}>
               {slides.map((s, k) => (

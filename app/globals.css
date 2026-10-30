@@ -72,3 +72,34 @@ button { cursor: pointer; }
 /* características do imóvel: 1 coluna no celular, 2 no computador */
 .desc-itens { grid-template-columns: 1fr; }
 @media (min-width: 520px) { .desc-itens { grid-template-columns: 1fr 1fr; } }
+
+/* Medidas que mudam entre celular e computador ficam no CSS (e não no JavaScript),
+   para a página já abrir no tamanho certo e nada "pular" quando o JavaScript carrega. */
+.logo-cab { height: 36px; }
+.hero-home { min-height: min(94vh, 800px); }
+.hero-conteudo { padding: 0 56px 56px; }
+.hero-texto { padding-top: 90px; }
+.busca-box { padding: 18px 20px; }
+.busca-linha { gap: 14px; }
+.busca-tipo { flex: 1 1 200px; }
+.busca-quartos { flex: 1 1 120px; }
+.busca-btn { flex: 0 0 auto; }
+.lista-home { padding: 36px 56px 56px; }
+.grade-imoveis { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 20px; }
+.card-midia { aspect-ratio: 9 / 16; }
+.midia-imovel { max-height: 640px; }
+@media (max-width: 720px) {
+  .logo-cab { height: 30px; }
+  .hero-home { min-height: auto; }
+  .hero-conteudo { padding: 0 20px 40px; }
+  .hero-texto { padding-top: 70px; }
+  .busca-box { padding: 14px; }
+  .busca-linha { gap: 10px; }
+  .busca-tipo { flex: 1 1 130px; }
+  .busca-quartos { flex: 1 1 100px; }
+  .busca-btn { flex: 1 1 100%; }
+  .lista-home { padding: 28px 20px 40px; }
+  .grade-imoveis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .card-midia { aspect-ratio: 3 / 4; }
+  .midia-imovel { max-height: min(640px, 68vh); }
+}

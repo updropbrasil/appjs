@@ -44,13 +44,11 @@ export default async function RootLayout({ children }) {
   return (
     <html lang="pt-BR">
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        {MEDIA_ORIGIN && <link rel="preconnect" href={MEDIA_ORIGIN} crossOrigin="anonymous" />}
+        {/* fontes servidas pelo próprio site (app/globals.css); a principal já começa a baixar aqui */}
+        <link rel="preload" href="/fonts/karla-latin.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
+        {/* fotos e vídeos do R2 são pedidos sem CORS: a conexão aberta antes da hora precisa ser a mesma (sem crossOrigin) */}
+        {MEDIA_ORIGIN && <link rel="preconnect" href={MEDIA_ORIGIN} />}
         {MEDIA_ORIGIN && <link rel="dns-prefetch" href={MEDIA_ORIGIN} />}
-        <link
-          href="https://fonts.googleapis.com/css2?family=Marcellus&family=Karla:ital,wght@0,300;0,400;0,600;0,700;1,400&display=swap"
-          rel="stylesheet"
-        />
       </head>
       <body>
         {children}

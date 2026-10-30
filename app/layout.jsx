@@ -55,8 +55,10 @@ export default async function RootLayout({ children }) {
 
         {ga ? (
           <>
-            <Script src={`https://www.googletagmanager.com/gtag/js?id=${ga}`} strategy="afterInteractive" />
-            <Script id="init-ga" strategy="afterInteractive">{`
+            {/* Analytics e Clarity carregam depois da página pronta (lazyOnload): não disputam o celular
+                com o primeiro carregamento. O Pixel continua logo no início por causa do PageView dos anúncios. */}
+            <Script src={`https://www.googletagmanager.com/gtag/js?id=${ga}`} strategy="lazyOnload" />
+            <Script id="init-ga" strategy="lazyOnload">{`
               window.dataLayer = window.dataLayer || [];
               function gtag(){dataLayer.push(arguments);}
               gtag('js', new Date());
@@ -76,12 +78,14 @@ export default async function RootLayout({ children }) {
               fbq('init', '${pixel}');
               fbq('track', 'PageView');
             `}</Script>
-            <noscript><img height="1" width="1" style={{ display: 'none' }} alt="" src={`https://www.facebook.com/tr?id=${pixel}&ev=PageView&noscript=1`} /></noscript>
+            {/* como texto: se fosse <img> do React, ele virava um "preload" no topo da página e disparava
+                um PageView extra (sem JavaScript) em toda visita, além de atrasar o carregamento */}
+            <noscript dangerouslySetInnerHTML={{ __html: `<img height="1" width="1" style="display:none" alt="" src="https://www.facebook.com/tr?id=${pixel}&ev=PageView&noscript=1" />` }} />
           </>
         ) : null}
 
         {clarity ? (
-          <Script id="init-clarity" strategy="afterInteractive">{`
+          <Script id="init-clarity" strategy="lazyOnload">{`
             (function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
             t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
             y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);})(window,document,"clarity","script","${clarity}");
